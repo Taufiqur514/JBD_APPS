@@ -9,7 +9,10 @@ import {
   Truck,
 } from "lucide-react";
 import { PrototypeShell } from "@/components/prototype-shell";
-import { adminOrders, trackingStatuses } from "@/lib/prototype-data";
+import { formatRupiah } from "@/lib/commerce";
+import { getOrder } from "@/lib/mvp-store";
+
+export const dynamic = "force-dynamic";
 
 export default async function AdminOrderDetailPage({
   params,
@@ -17,10 +20,12 @@ export default async function AdminOrderDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const order = adminOrders.find((item) => item.id === id) ?? adminOrders[0];
+  const order = await getOrder(id);
+  const activeStatus = order?.status ?? "unpaid";
+  const flow = ["paid", "picking", "qc", "packing", "shipped", "delivered"];
 
   return (
-    <PrototypeShell compact eyebrow="Order Management" title={order.id} description="">
+    <PrototypeShell compact eyebrow="Order Management" title={order?.id ?? id} description="">
       <Link
         href="/admin"
         className="inline-flex w-fit items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700"
@@ -32,37 +37,49 @@ export default async function AdminOrderDetailPage({
       <section className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="grid gap-4 md:grid-cols-4">
-            <OrderAction icon={CreditCard} label="Paid" active />
-            <OrderAction icon={ClipboardCheck} label="Picking" active />
-            <OrderAction icon={PackageCheck} label="Packed" active={order.status === "Packed" || order.status === "Shipped"} />
-            <OrderAction icon={Truck} label="Shipped" active={order.status === "Shipped"} />
+            <OrderAction icon={CreditCard} label="Paid" active={flow.indexOf(activeStatus) >= 0} />
+            <OrderAction icon={ClipboardCheck} label="Picking" active={flow.indexOf(activeStatus) >= 1} />
+            <OrderAction icon={PackageCheck} label="Packed" active={flow.indexOf(activeStatus) >= 3} />
+            <OrderAction icon={Truck} label="Shipped" active={flow.indexOf(activeStatus) >= 4} />
           </div>
 
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p className="font-semibold text-slate-950">Fulfillment actions</p>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <button type="button" className="h-11 rounded-full bg-slate-950 px-4 text-sm font-semibold text-white">
-                Generate picklist
-              </button>
-              <button type="button" className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700">
+              <form action="/api/orders/process" method="post">
+                <input type="hidden" name="orderId" value={order?.id ?? ""} />
+                <input type="hidden" name="status" value="picking" />
+                <button type="submit" className="h-11 w-full rounded-full bg-slate-950 px-4 text-sm font-semibold text-white">
+                  Generate picklist
+                </button>
+              </form>
+              <form action="/api/orders/process" method="post">
+                <input type="hidden" name="orderId" value={order?.id ?? ""} />
+                <input type="hidden" name="status" value="packing" />
+                <button type="submit" className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700">
                 <Printer className="h-4 w-4" />
                 Print AWB
-              </button>
-              <button type="button" className="h-11 rounded-full border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700">
-                Mark ready to ship
-              </button>
+                </button>
+              </form>
+              <form action="/api/orders/process" method="post">
+                <input type="hidden" name="orderId" value={order?.id ?? ""} />
+                <input type="hidden" name="status" value="shipped" />
+                <button type="submit" className="h-11 w-full rounded-full border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700">
+                  Mark ready to ship
+                </button>
+              </form>
             </div>
           </div>
 
           <div className="mt-6 space-y-4">
-            {trackingStatuses.map((item) => (
-              <div key={item.status} className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4">
+            {flow.map((item) => (
+              <div key={item} className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-white">
                   <Check className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="font-semibold text-slate-950">{item.status}</p>
-                  <p className="mt-1 text-sm text-slate-500">{item.time}</p>
+                  <p className="font-semibold capitalize text-slate-950">{item}</p>
+                  <p className="mt-1 text-sm text-slate-500">{flow.indexOf(activeStatus) >= flow.indexOf(item) ? "Done" : "Waiting"}</p>
                 </div>
               </div>
             ))}
@@ -72,11 +89,11 @@ export default async function AdminOrderDetailPage({
         <aside className="space-y-5">
           <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm text-slate-500">Customer</p>
-            <p className="mt-1 text-xl font-semibold text-slate-950">{order.customer}</p>
+            <p className="mt-1 text-xl font-semibold text-slate-950">{order?.userId ?? "Customer"}</p>
             <p className="mt-4 text-sm text-slate-500">Channel</p>
-            <p className="font-medium text-slate-900">{order.channel}</p>
+            <p className="font-medium text-slate-900">Storefront</p>
             <p className="mt-4 text-sm text-slate-500">Total</p>
-            <p className="text-2xl font-semibold text-slate-950">{order.total}</p>
+            <p className="text-2xl font-semibold text-slate-950">{formatRupiah(order?.total ?? 0)}</p>
           </div>
           <div className="rounded-[28px] border border-slate-200 bg-slate-950 p-5 text-white shadow-sm">
             <p className="text-sm text-emerald-300">Warehouse</p>

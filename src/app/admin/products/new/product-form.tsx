@@ -22,11 +22,13 @@ import {
 export function AdminProductForm({
   mode,
   slug,
+  initialProduct,
 }: {
   mode: "create" | "edit";
   slug?: string;
+  initialProduct?: (typeof featuredProducts)[number];
 }) {
-  const product = featuredProducts.find((item) => item.slug === slug) ?? featuredProducts[0];
+  const product = initialProduct ?? featuredProducts.find((item) => item.slug === slug) ?? featuredProducts[0];
   const [generated, setGenerated] = useState(mode === "edit");
   const [activeTab, setActiveTab] = useState("Basic Info");
   const [productName, setProductName] = useState(
@@ -67,17 +69,20 @@ export function AdminProductForm({
             <Sparkles className="h-4 w-4" />
             Generate deskripsi
           </button>
-          <Link
-            href="/admin/products"
+          <button
+            type="submit"
+            form="admin-product-form"
             className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-emerald-700 px-4 text-sm font-semibold text-white"
           >
             <Save className="h-4 w-4" />
             Simpan produk
-          </Link>
+          </button>
         </div>
       </div>
 
-      <section className="grid gap-6 xl:grid-cols-[1fr_360px]">
+      <form id="admin-product-form" action="/api/admin/products" method="post" className="grid gap-6 xl:grid-cols-[1fr_360px]">
+        <input type="hidden" name="mode" value={mode} />
+        <input type="hidden" name="slug" value={slug ?? ""} />
         <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-4">
             {adminProductTabs.map((tab) => (
@@ -99,18 +104,20 @@ export function AdminProductForm({
           <div className="mt-5 grid gap-5">
             {activeTab === "Basic Info" ? (
               <>
-                <Field label="Nama produk" value={productName} onChange={setProductName} />
+                <Field name="name" label="Nama produk" value={productName} onChange={setProductName} />
                 <div className="grid gap-4 md:grid-cols-2">
-                  <SelectField label="Kategori" value={mode === "edit" ? product.category : "Chocolate"} options={productCategories} />
+                  <SelectField name="category" label="Kategori" value={mode === "edit" ? product.category : "Chocolate"} options={productCategories} />
                   <SelectField label="Status" value="Published" options={["Draft", "Published", "Archived"]} />
                 </div>
                 <TextArea
+                  name="description"
                   label="Deskripsi produk"
                   value={description}
                   placeholder="Klik Generate deskripsi atau isi manual deskripsi produk."
                   onChange={setDescription}
                 />
                 <TextArea
+                  name="serving"
                   label="Cara penyajian"
                   value={mode === "edit" ? product.serving : "30g powder + 150ml milk/water. Shake or blend with ice."}
                   onChange={() => null}
@@ -133,15 +140,14 @@ export function AdminProductForm({
 
             {activeTab === "Pricing" ? (
               <div className="grid gap-4 md:grid-cols-3">
-                <Field label="Harga dasar" value="89000" onChange={() => null} />
+                <Field name="price" label="Harga dasar" value={String(product.numericPrice ?? 89000)} onChange={() => null} />
                 <Field label="Harga promo" value="79000" onChange={() => null} />
-                <Field label="HPP estimasi" value="55200" onChange={() => null} />
               </div>
             ) : null}
 
             {activeTab === "Inventory" ? (
               <div className="grid gap-4 md:grid-cols-3">
-                <Field label="Stock on hand" value={mode === "edit" ? String(product.stock) : "120"} onChange={() => null} />
+                <Field name="stock" label="Stock on hand" value={mode === "edit" ? String(product.stock) : "120"} onChange={() => null} />
                 <Field label="Safety stock" value="40" onChange={() => null} />
                 <SelectField label="Warehouse" value="Bekasi" options={["Bekasi", "Surabaya", "Multi warehouse"]} />
               </div>
@@ -195,16 +201,18 @@ export function AdminProductForm({
             </div>
           </div>
         </aside>
-      </section>
+      </form>
     </PrototypeShell>
   );
 }
 
 function Field({
+  name,
   label,
   value,
   onChange,
 }: {
+  name?: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -213,6 +221,7 @@ function Field({
     <label className="grid gap-2">
       <span className="text-sm font-medium text-slate-700">{label}</span>
       <input
+        name={name}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none focus:border-emerald-300"
@@ -222,11 +231,13 @@ function Field({
 }
 
 function TextArea({
+  name,
   label,
   value,
   placeholder,
   onChange,
 }: {
+  name?: string;
   label: string;
   value: string;
   placeholder?: string;
@@ -236,6 +247,7 @@ function TextArea({
     <label className="grid gap-2">
       <span className="text-sm font-medium text-slate-700">{label}</span>
       <textarea
+        name={name}
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
@@ -247,10 +259,12 @@ function TextArea({
 }
 
 function SelectField({
+  name,
   label,
   value,
   options,
 }: {
+  name?: string;
   label: string;
   value: string;
   options: string[];
@@ -259,6 +273,7 @@ function SelectField({
     <label className="grid gap-2">
       <span className="text-sm font-medium text-slate-700">{label}</span>
       <select
+        name={name}
         defaultValue={value}
         className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none focus:border-emerald-300"
       >

@@ -24,14 +24,14 @@ export default function ProcurementPage() {
           </div>
         </div>
         <aside className="space-y-5">
-          <button type="button" className="flex w-full items-center gap-4 rounded-[28px] bg-emerald-700 p-5 text-left text-white shadow-sm">
+          <Link href="/operations/procurement?mode=purchase-order" className="flex w-full items-center gap-4 rounded-[28px] bg-emerald-700 p-5 text-left text-white shadow-sm">
             <PackagePlus className="h-6 w-6" />
             <span className="font-semibold">Create purchase order</span>
-          </button>
-          <button type="button" className="flex w-full items-center gap-4 rounded-[28px] border border-slate-200 bg-white p-5 text-left text-slate-950 shadow-sm">
+          </Link>
+          <Link href="/operations/procurement?mode=receive-goods" className="flex w-full items-center gap-4 rounded-[28px] border border-slate-200 bg-white p-5 text-left text-slate-950 shadow-sm">
             <ClipboardList className="h-6 w-6 text-emerald-700" />
             <span className="font-semibold">Receive goods</span>
-          </button>
+          </Link>
         </aside>
       </section>
     </PrototypeShell>

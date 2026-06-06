@@ -1,0 +1,34 @@
+import { getDb, demoUserId } from "@/lib/db";
+import { ensureSeed, getCartLines, getOrderSummaryFromCart, trackEvent } from "@/lib/mvp-store";
+import { redirectResponse } from "@/lib/redirect-response";
+
+export async function POST(request: Request) {
+  await ensureSeed();
+  const db = await getDb();
+  const lines = await getCartLines();
+  if (!lines.length) return redirectResponse("/storefront", request);
+  const summary = await getOrderSummaryFromCart();
+  const now = new Date().toISOString();
+  const id = `JBD-${new Date().toISOString().slice(2, 10).replaceAll("-", "")}-${Math.floor(1000 + Math.random() * 9000)}`;
+  await db.collection("orders").insertOne({
+    id,
+    userId: demoUserId,
+    status: "unpaid",
+    items: lines.map((line) => ({
+      productSlug: line.product.slug,
+      name: line.product.name,
+      qty: line.qty,
+      price: line.product.numericPrice,
+      variant: line.variant,
+    })),
+    addressId: "addr-main",
+    paymentStatus: "pending",
+    shipmentStatus: "pending",
+    total: summary.total,
+    createdAt: now,
+    updatedAt: now,
+  });
+  await db.collection("carts").updateOne({ userId: demoUserId, status: "active" }, { $set: { status: "ordered", orderId: id, updatedAt: now } });
+  await trackEvent("checkout_started", demoUserId, "storefront", summary.total, { orderId: id });
+  return redirectResponse(`/storefront/payment?order=${id}`, request);
+}

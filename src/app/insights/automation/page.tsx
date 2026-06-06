@@ -27,12 +27,12 @@ export default function AutomationPage() {
           <Send className="h-8 w-8 text-emerald-300" />
           <p className="mt-4 text-xl font-semibold">New flow</p>
           <div className="mt-4 space-y-3">
-            <button type="button" className="flex w-full items-center gap-3 rounded-2xl bg-white/5 p-4 text-sm text-slate-200">
+            <Link href="/insights/automation?flow=whatsapp" className="flex w-full items-center gap-3 rounded-2xl bg-white/5 p-4 text-sm text-slate-200">
               <MessageSquare className="h-4 w-4 text-emerald-300" /> WhatsApp blast
-            </button>
-            <button type="button" className="flex w-full items-center gap-3 rounded-2xl bg-white/5 p-4 text-sm text-slate-200">
+            </Link>
+            <Link href="/insights/automation?flow=email" className="flex w-full items-center gap-3 rounded-2xl bg-white/5 p-4 text-sm text-slate-200">
               <Mail className="h-4 w-4 text-emerald-300" /> Email campaign
-            </button>
+            </Link>
           </div>
         </aside>
       </section>

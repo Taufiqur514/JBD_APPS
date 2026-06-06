@@ -32,10 +32,10 @@ export default function CrmPage() {
 
 function CrmAction({ icon: Icon, title, text }: { icon: typeof Users; title: string; text: string }) {
   return (
-    <button type="button" className="w-full rounded-[28px] border border-slate-200 bg-white p-5 text-left shadow-sm">
+    <Link href="/storefront/chat" className="block w-full rounded-[28px] border border-slate-200 bg-white p-5 text-left shadow-sm">
       <Icon className="h-6 w-6 text-emerald-700" />
       <p className="mt-4 font-semibold text-slate-950">{title}</p>
       <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
-    </button>
+    </Link>
   );
 }

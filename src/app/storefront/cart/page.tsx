@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { PrototypeShell } from "@/components/prototype-shell";
-import { formatRupiah, getCartLines, getOrderSummary } from "@/lib/commerce";
+import { formatRupiah } from "@/lib/commerce";
+import { getCartLines, getOrderSummaryFromCart } from "@/lib/mvp-store";
 
-export default function CartPage() {
-  const lines = getCartLines();
-  const summary = getOrderSummary();
+export const dynamic = "force-dynamic";
+
+export default async function CartPage() {
+  const lines = await getCartLines();
+  const summary = await getOrderSummaryFromCart();
 
   return (
     <PrototypeShell compact eyebrow="Cart" title="Keranjang Belanja" description="">
@@ -27,20 +30,20 @@ export default function CartPage() {
                   <p className="mt-1 text-sm text-slate-500">{line.variant}</p>
                   <p className="mt-2 text-sm text-slate-600">{line.note}</p>
                   <div className="mt-3 flex h-10 w-fit items-center rounded-full border border-slate-200 bg-white">
-                    <button type="button" className="flex h-10 w-10 items-center justify-center">
+                    <CartUpdateButton slug={line.product.slug} action="dec" label="Kurangi jumlah">
                       <Minus className="h-4 w-4" />
-                    </button>
+                    </CartUpdateButton>
                     <span className="w-10 text-center text-sm font-semibold">{line.qty}</span>
-                    <button type="button" className="flex h-10 w-10 items-center justify-center">
+                    <CartUpdateButton slug={line.product.slug} action="inc" label="Tambah jumlah">
                       <Plus className="h-4 w-4" />
-                    </button>
+                    </CartUpdateButton>
                   </div>
                 </div>
                 <div className="flex flex-row items-center justify-between gap-4 md:flex-col md:items-end">
                   <p className="text-lg font-semibold text-slate-950">{formatRupiah(line.lineTotal)}</p>
-                  <button type="button" className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-500">
+                  <CartUpdateButton slug={line.product.slug} action="remove" label="Hapus produk" rounded>
                     <Trash2 className="h-4 w-4" />
-                  </button>
+                  </CartUpdateButton>
                 </div>
               </div>
             ))}
@@ -56,7 +59,8 @@ export default function CartPage() {
           </div>
           <div className="mt-5 space-y-3 text-sm">
             <SummaryRow label="Subtotal" value={formatRupiah(summary.subtotal)} />
-            <SummaryRow label="Voucher JBD25" value={`-${formatRupiah(summary.discount)}`} />
+            <SummaryRow label="Voucher JBD25" value={`-${formatRupiah(summary.voucherDiscount)}`} />
+            <SummaryRow label="Poin digunakan" value={`-${formatRupiah(summary.pointsUsed)}`} />
             <SummaryRow label="Estimasi ongkir" value={formatRupiah(summary.shipping)} />
             <SummaryRow label="Asuransi" value={formatRupiah(summary.insurance)} />
           </div>
@@ -64,20 +68,20 @@ export default function CartPage() {
             <SummaryRow label="Total" value={formatRupiah(summary.total)} strong />
           </div>
           <Link
-            href="/storefront/checkout"
-            className="mt-5 flex h-12 w-full items-center justify-center rounded-full bg-emerald-700 text-sm font-semibold text-white"
+            href={lines.length ? "/storefront/checkout" : "/storefront"}
+            className="mt-5 hidden h-12 w-full items-center justify-center rounded-full bg-emerald-700 text-sm font-semibold text-white lg:flex"
           >
-            Checkout
+            {lines.length ? "Checkout" : "Belanja produk"}
           </Link>
         </aside>
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-20 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
         <Link
-          href="/storefront/checkout"
+          href={lines.length ? "/storefront/checkout" : "/storefront"}
           className="flex h-12 w-full items-center justify-center rounded-full bg-emerald-700 text-sm font-semibold text-white"
         >
-          Checkout
+          {lines.length ? "Checkout" : "Belanja produk"}
         </Link>
       </div>
     </PrototypeShell>
@@ -90,5 +94,33 @@ function SummaryRow({ label, value, strong = false }: { label: string; value: st
       <span className={strong ? "font-semibold text-slate-950" : "text-slate-500"}>{label}</span>
       <span className={strong ? "text-xl font-semibold text-slate-950" : "font-medium text-slate-900"}>{value}</span>
     </div>
+  );
+}
+
+function CartUpdateButton({
+  slug,
+  action,
+  label,
+  rounded = false,
+  children,
+}: {
+  slug: string;
+  action: "inc" | "dec" | "remove";
+  label: string;
+  rounded?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <form action="/api/cart/update" method="post">
+      <input type="hidden" name="slug" value={slug} />
+      <input type="hidden" name="action" value={action} />
+      <button
+        type="submit"
+        aria-label={label}
+        className={`flex h-10 w-10 items-center justify-center ${rounded ? "rounded-full bg-white text-slate-500" : ""}`}
+      >
+        {children}
+      </button>
+    </form>
   );
 }

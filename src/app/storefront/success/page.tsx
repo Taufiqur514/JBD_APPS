@@ -1,10 +1,19 @@
 import Link from "next/link";
 import { CheckCircle2, FileText, PackageCheck } from "lucide-react";
 import { PrototypeShell } from "@/components/prototype-shell";
-import { formatRupiah, getOrderSummary } from "@/lib/commerce";
+import { formatRupiah } from "@/lib/commerce";
+import { getOrder, getOrders } from "@/lib/mvp-store";
 
-export default function SuccessPage() {
-  const summary = getOrderSummary();
+export const dynamic = "force-dynamic";
+
+export default async function SuccessPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ order?: string }>;
+}) {
+  const { order: orderId } = await searchParams;
+  const orders = await getOrders();
+  const order = orderId ? await getOrder(orderId) : orders[0];
 
   return (
     <PrototypeShell compact eyebrow="Payment Success" title="Pembayaran Berhasil" description="">
@@ -12,14 +21,14 @@ export default function SuccessPage() {
         <div className="rounded-[28px] border border-emerald-200 bg-emerald-50 p-8 shadow-sm">
           <CheckCircle2 className="h-16 w-16 text-emerald-700" />
           <h3 className="mt-5 text-3xl font-semibold text-emerald-950">
-            Order JBD-240605-0127 sudah dibayar
+            Order {order?.id ?? "JBD"} sudah dibayar
           </h3>
           <p className="mt-3 text-sm leading-7 text-emerald-800">
             Pesanan masuk ke stock reservation dan akan diproses gudang.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
-              href="/storefront/orders/JBD-240605-0127"
+              href={`/storefront/orders/${order?.id ?? "JBD-240605-0127"}`}
               className="inline-flex h-12 items-center justify-center rounded-full bg-emerald-700 px-6 text-sm font-semibold text-white"
             >
               Lacak pesanan
@@ -36,8 +45,8 @@ export default function SuccessPage() {
         <aside className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
           <p className="font-semibold text-slate-950">Invoice</p>
           <div className="mt-5 space-y-4">
-            <InfoRow icon={FileText} label="Invoice" value="INV/JBD/2026/0605/0127" />
-            <InfoRow icon={PackageCheck} label="Total" value={formatRupiah(summary.total)} />
+            <InfoRow icon={FileText} label="Invoice" value={`INV/${order?.id ?? "JBD"}`} />
+            <InfoRow icon={PackageCheck} label="Total" value={formatRupiah(order?.total ?? 0)} />
             <InfoRow icon={CheckCircle2} label="Status" value="Paid" />
           </div>
         </aside>

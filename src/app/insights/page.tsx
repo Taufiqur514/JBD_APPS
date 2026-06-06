@@ -12,7 +12,6 @@ import {
   analyticCards,
   automationCards,
   crmSegments,
-  financeMetrics,
 } from "@/lib/prototype-data";
 
 export default function InsightsPage() {
@@ -23,7 +22,7 @@ export default function InsightsPage() {
       title="Growth Intelligence"
       description=""
     >
-      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+      <div className="grid gap-6">
         <SectionCard
           title="CRM and automation"
         >
@@ -60,23 +59,6 @@ export default function InsightsPage() {
           </div>
         </SectionCard>
 
-        <SectionCard
-          title="Finance visibility"
-        >
-          <div className="grid gap-4 md:grid-cols-2">
-            {financeMetrics.map((metric) => (
-              <Link href="/insights/finance" key={metric.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:border-emerald-300 hover:bg-white">
-                <p className="text-sm text-slate-500">{metric.label}</p>
-                <p className={`mt-2 text-3xl font-semibold ${metric.tone}`}>{metric.value}</p>
-              </Link>
-            ))}
-          </div>
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="text-sm leading-7 text-slate-600">
-              Order paid terhubung ke revenue, HPP, gross profit, dan cash flow.
-            </p>
-          </div>
-        </SectionCard>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">

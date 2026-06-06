@@ -19,6 +19,13 @@
 
 # production
 /build
+/capacitor-www/*
+!/capacitor-www/index.html
+
+# android build outputs
+/android/.gradle/
+/android/app/build/
+/android/build/
 
 # misc
 .DS_Store

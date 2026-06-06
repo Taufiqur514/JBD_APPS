@@ -18,9 +18,9 @@ export default function AiPage() {
                 <p className="font-semibold text-slate-950">{flow.agent}</p>
                 <p className="text-sm text-slate-600">{flow.input}</p>
                 <p className="text-sm text-slate-600">{flow.output}</p>
-                <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-slate-950 px-4 text-sm font-semibold text-white">
+                <Link href="/insights/reports" className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-slate-950 px-4 text-sm font-semibold text-white">
                   <Play className="h-4 w-4" /> Run
-                </button>
+                </Link>
               </div>
             ))}
           </div>

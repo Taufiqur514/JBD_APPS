@@ -1,11 +1,15 @@
-import Link from "next/link";
 import { MapPin, ShieldCheck, Ticket, Truck } from "lucide-react";
 import { PrototypeShell } from "@/components/prototype-shell";
-import { formatRupiah, getCartLines, getOrderSummary } from "@/lib/commerce";
+import { formatRupiah } from "@/lib/commerce";
+import { getAddresses, getCartLines, getOrderSummaryFromCart } from "@/lib/mvp-store";
 
-export default function CheckoutPage() {
-  const lines = getCartLines();
-  const summary = getOrderSummary();
+export const dynamic = "force-dynamic";
+
+export default async function CheckoutPage() {
+  const lines = await getCartLines();
+  const summary = await getOrderSummaryFromCart();
+  const addresses = await getAddresses();
+  const address = addresses.find((item) => item.primary) ?? addresses[0];
 
   return (
     <PrototypeShell compact eyebrow="Checkout" title="Alamat, Kurir, Voucher" description="">
@@ -13,9 +17,9 @@ export default function CheckoutPage() {
         <div className="space-y-5">
           <CheckoutBlock icon={MapPin} title="Alamat pengiriman">
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-              <p className="font-semibold text-emerald-950">Kedai Teman Kopi</p>
+              <p className="font-semibold text-emerald-950">{String(address?.name ?? "Kedai Teman Kopi")}</p>
               <p className="mt-1 text-sm leading-6 text-emerald-800">
-                Jl. Melati Raya No. 18, Bekasi Selatan, Jawa Barat
+                {String(address?.address ?? "Jl. Melati Raya No. 18, Bekasi Selatan, Jawa Barat")}
               </p>
             </div>
           </CheckoutBlock>
@@ -23,21 +27,19 @@ export default function CheckoutPage() {
           <CheckoutBlock icon={Truck} title="Pilih kurir">
             <div className="grid gap-3 md:grid-cols-3">
               {["JNE Reguler", "SiCepat BEST", "Anteraja Cargo"].map((courier, index) => (
-                <button
+                <label
                   key={courier}
-                  type="button"
-                  className={`rounded-2xl border p-4 text-left ${
-                    index === 0
-                      ? "border-emerald-300 bg-emerald-50"
-                      : "border-slate-200 bg-slate-50"
-                  }`}
+                  className="cursor-pointer"
                 >
+                  <input className="peer sr-only" type="radio" name="courier" value={courier} defaultChecked={index === 0} />
+                  <span className="block rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left peer-checked:border-emerald-300 peer-checked:bg-emerald-50">
                   <p className="font-semibold text-slate-950">{courier}</p>
                   <p className="mt-1 text-sm text-slate-500">{index + 1}-{index + 3} hari</p>
                   <p className="mt-2 text-sm font-medium text-slate-900">
                     {formatRupiah(index === 0 ? 18000 : index === 1 ? 26000 : 42000)}
                   </p>
-                </button>
+                  </span>
+                </label>
               ))}
             </div>
           </CheckoutBlock>
@@ -45,8 +47,14 @@ export default function CheckoutPage() {
           <CheckoutBlock icon={Ticket} title="Voucher dan poin">
             <div className="grid gap-3 md:grid-cols-2">
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                <p className="font-semibold text-emerald-950">JBD25 terpakai</p>
-                <p className="mt-1 text-sm text-emerald-700">Diskon Rp 25.000</p>
+                <p className="font-semibold text-emerald-950">
+                  {summary.voucherEligible ? "JBD25 terpakai" : "JBD25 belum memenuhi syarat"}
+                </p>
+                <p className="mt-1 text-sm text-emerald-700">
+                  {summary.voucherEligible
+                    ? `Diskon ${formatRupiah(summary.voucherDiscount)}`
+                    : `Minimum belanja ${formatRupiah(summary.voucherMinSpend)}`}
+                </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="font-semibold text-slate-950">1.250 poin tersedia</p>
@@ -68,26 +76,40 @@ export default function CheckoutPage() {
           </div>
           <div className="mt-5 border-t border-slate-200 pt-5 text-sm">
             <SummaryRow label="Subtotal" value={formatRupiah(summary.subtotal)} />
-            <SummaryRow label="Diskon" value={`-${formatRupiah(summary.discount + summary.pointsUsed)}`} />
+            <SummaryRow label="Voucher & promo" value={`-${formatRupiah(summary.discount)}`} />
+            <SummaryRow label="Poin digunakan" value={`-${formatRupiah(summary.pointsUsed)}`} />
             <SummaryRow label="Ongkir + asuransi" value={formatRupiah(summary.shipping + summary.insurance)} />
             <SummaryRow label="Total" value={formatRupiah(summary.total)} strong />
           </div>
-          <Link
-            href="/storefront/payment"
-            className="mt-5 flex h-12 w-full items-center justify-center rounded-full bg-emerald-700 text-sm font-semibold text-white"
-          >
-            Lanjut bayar
-          </Link>
+          {summary.appliedPromos.length ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {summary.appliedPromos.map((promo) => (
+                <span key={promo} className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                  {promo}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <form action="/api/checkout" method="post">
+            <button
+              type="submit"
+              className="mt-5 hidden h-12 w-full items-center justify-center rounded-full bg-emerald-700 text-sm font-semibold text-white lg:flex"
+            >
+              Buat order & lanjut bayar
+            </button>
+          </form>
         </aside>
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
-        <Link
-          href="/storefront/payment"
-          className="flex h-12 w-full items-center justify-center rounded-full bg-emerald-700 text-sm font-semibold text-white"
-        >
-          Lanjut bayar
-        </Link>
+      <div className="fixed inset-x-0 bottom-20 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+        <form action="/api/checkout" method="post">
+          <button
+            type="submit"
+            className="flex h-12 w-full items-center justify-center rounded-full bg-emerald-700 text-sm font-semibold text-white"
+          >
+            Buat order & lanjut bayar
+          </button>
+        </form>
       </div>
     </PrototypeShell>
   );

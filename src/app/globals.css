@@ -30,6 +30,15 @@ button {
   cursor: pointer;
 }
 
+@keyframes loading-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(400%);
+  }
+}
+
 ::selection {
   background: #bbf7d0;
   color: #052e16;

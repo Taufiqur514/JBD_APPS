@@ -14,11 +14,21 @@ import { SectionCard } from "@/components/prototype-ui";
 import {
   operationsMetrics,
   returnsBoard,
-  warehouseQueue,
   warehouseTasks,
 } from "@/lib/prototype-data";
+import { getOrders } from "@/lib/mvp-store";
 
-export default function OperationsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function OperationsPage() {
+  const orders = await getOrders();
+  const queue = [
+    { stage: "Paid", count: orders.filter((order) => order.status === "paid").length, href: "/operations/picking", tone: "bg-emerald-50 text-emerald-700" },
+    { stage: "Picking", count: orders.filter((order) => order.status === "picking").length, href: "/operations/picking", tone: "bg-sky-50 text-sky-700" },
+    { stage: "Packing", count: orders.filter((order) => order.status === "packing" || order.status === "qc").length, href: "/operations/packing", tone: "bg-amber-50 text-amber-700" },
+    { stage: "Shipped", count: orders.filter((order) => order.status === "shipped").length, href: "/storefront/orders/" + (orders[0]?.id ?? "JBD"), tone: "bg-slate-100 text-slate-700" },
+  ];
+
   return (
     <PrototypeShell
       compact
@@ -41,7 +51,7 @@ export default function OperationsPage() {
           title="Warehouse queue"
         >
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {warehouseQueue.map((stage) => (
+            {queue.map((stage) => (
               <Link key={stage.stage} href={stage.href} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-emerald-300 hover:bg-white">
                 <p className="text-sm text-slate-500">{stage.stage}</p>
                 <div className="mt-3 flex items-center justify-between">
@@ -140,7 +150,7 @@ export default function OperationsPage() {
             <FlowRow
               icon={PackagePlus}
               title="Supplier & procurement"
-              text="Purchase order, penerimaan barang, dan HPP update untuk bahan baku."
+              text="Purchase order, penerimaan barang, dan sinkronisasi dokumen biaya ke Finance."
               href="/operations/procurement"
             />
           </div>

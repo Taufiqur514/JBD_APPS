@@ -23,9 +23,9 @@ export default function ReturnsPage() {
                   <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">{item.status}</span>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <button type="button" className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Approve</button>
-                  <button type="button" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Refund</button>
-                  <button type="button" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Replace</button>
+                  <Link href="/operations/returns?status=approved" className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Approve</Link>
+                  <Link href="/operations/returns?status=refund" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Refund</Link>
+                  <Link href="/operations/returns?status=replace" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Replace</Link>
                 </div>
               </div>
             ))}

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Check, Clock3, Package, Star, Truck } from "lucide-react";
 import { PrototypeShell } from "@/components/prototype-shell";
-import { trackingStatuses } from "@/lib/prototype-data";
+import { getOrder } from "@/lib/mvp-store";
+
+export const dynamic = "force-dynamic";
 
 export default async function OrderTrackingPage({
   params,
@@ -9,6 +11,9 @@ export default async function OrderTrackingPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const order = await getOrder(id);
+  const flow = ["paid", "picking", "qc", "packing", "shipped", "delivered"];
+  const activeIndex = flow.indexOf(order?.status ?? "unpaid");
 
   return (
     <PrototypeShell compact eyebrow="Order Tracking" title={id} description="">
@@ -16,28 +21,30 @@ export default async function OrderTrackingPage({
         <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
           <p className="font-semibold text-slate-950">Timeline pengiriman</p>
           <div className="mt-5 space-y-4">
-            {trackingStatuses.map((item, index) => (
-              <div key={item.status} className="flex items-start gap-4">
+            {flow.map((item, index) => {
+              const state = activeIndex >= index ? "done" : activeIndex + 1 === index ? "active" : "upcoming";
+              return (
+              <div key={item} className="flex items-start gap-4">
                 <div className="flex flex-col items-center">
                   <div
                     className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                      item.state === "done"
+                      state === "done"
                         ? "bg-emerald-600 text-white"
-                        : item.state === "active"
+                        : state === "active"
                           ? "bg-sky-100 text-sky-700"
                           : "bg-slate-100 text-slate-500"
                     }`}
                   >
-                    {item.state === "done" ? <Check className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}
+                    {state === "done" ? <Check className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}
                   </div>
-                  {index < trackingStatuses.length - 1 ? <div className="mt-2 h-12 w-px bg-slate-200" /> : null}
+                  {index < flow.length - 1 ? <div className="mt-2 h-12 w-px bg-slate-200" /> : null}
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="font-semibold text-slate-950">{item.status}</p>
-                  <p className="mt-1 text-sm text-slate-500">{item.time}</p>
+                  <p className="font-semibold capitalize text-slate-950">{item}</p>
+                  <p className="mt-1 text-sm text-slate-500">{state === "done" ? "Selesai" : state === "active" ? "Sedang diproses" : "Menunggu"}</p>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
 
@@ -56,21 +63,23 @@ export default async function OrderTrackingPage({
               <Package className="h-5 w-5 text-emerald-700" />
               <p className="font-semibold text-slate-950">Pesanan diterima?</p>
             </div>
+            <form action="/api/orders/process" method="post" className="mt-5">
+              <input type="hidden" name="orderId" value={id} />
+              <input type="hidden" name="status" value="delivered" />
+              <input type="hidden" name="back" value={`/storefront/orders/${id}`} />
+              <button type="submit" className="flex h-11 w-full items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">
+                Konfirmasi diterima
+              </button>
+            </form>
             <Link
-              href="/storefront"
-              className="mt-5 flex h-11 w-full items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white"
-            >
-              Konfirmasi diterima
-            </Link>
-            <button
-              type="button"
+              href={`/storefront/review?order=${id}`}
               className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-full border border-slate-200 text-sm font-semibold text-slate-700"
             >
               <Star className="h-4 w-4" />
               Beri review
-            </button>
+            </Link>
             <Link
-              href="/storefront/review"
+              href={`/storefront/review?order=${id}`}
               className="mt-3 flex h-11 w-full items-center justify-center rounded-full bg-emerald-700 text-sm font-semibold text-white"
             >
               Review produk

@@ -21,7 +21,9 @@ export default function QcPage() {
               </label>
             ))}
           </div>
-          <button type="button" className="mt-5 h-11 rounded-full bg-emerald-700 px-5 text-sm font-semibold text-white">Approve QC</button>
+          <Link href="/operations/packing" className="mt-5 inline-flex h-11 items-center rounded-full bg-emerald-700 px-5 text-sm font-semibold text-white">
+            Approve QC
+          </Link>
         </div>
         <aside className="rounded-[28px] border border-slate-200 bg-slate-950 p-5 text-white shadow-sm">
           <ShieldCheck className="h-8 w-8 text-emerald-300" />
