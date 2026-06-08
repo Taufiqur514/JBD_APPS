@@ -1,5 +1,5 @@
 import { getDb, demoUserId } from "@/lib/db";
-import { ensureSeed } from "@/lib/mvp-store";
+import { ensureSeed, invalidateMvpCache } from "@/lib/mvp-store";
 import { redirectResponse } from "@/lib/redirect-response";
 
 export async function POST(request: Request) {
@@ -23,6 +23,7 @@ export async function POST(request: Request) {
       primary: false,
       createdAt: new Date().toISOString(),
     });
+    invalidateMvpCache();
   }
 
   return redirectResponse("/storefront/profile/addresses", request);

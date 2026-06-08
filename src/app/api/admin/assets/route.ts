@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getDb } from "@/lib/db";
-import { ensureSeed } from "@/lib/mvp-store";
+import { ensureSeed, invalidateMvpCache } from "@/lib/mvp-store";
 import { redirectResponse } from "@/lib/redirect-response";
 
 function slugify(value: string) {
@@ -59,5 +59,6 @@ export async function POST(request: Request) {
     });
   }
 
+  invalidateMvpCache();
   return redirectResponse("/admin/assets", request);
 }

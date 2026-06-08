@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
@@ -66,6 +66,26 @@ const bottomNav = {
   ],
 } as const;
 
+function getCachedHeaderCounts() {
+  if (typeof window === "undefined") return { cart: 0, notifications: 0 };
+  const cachedHeader = window.sessionStorage.getItem("jbd-header-counts");
+  if (!cachedHeader) return { cart: 0, notifications: 0 };
+  try {
+    const parsed = JSON.parse(cachedHeader) as { cart?: number; notifications?: number; cachedAt?: number };
+    if (parsed.cachedAt && Date.now() - parsed.cachedAt < 4_000) {
+      return { cart: Number(parsed.cart ?? 0), notifications: Number(parsed.notifications ?? 0) };
+    }
+  } catch {
+    window.sessionStorage.removeItem("jbd-header-counts");
+  }
+  return { cart: 0, notifications: 0 };
+}
+
+function getCachedSessionRole() {
+  if (typeof window === "undefined") return "";
+  return window.sessionStorage.getItem("jbd-session-role") ?? "";
+}
+
 export function PrototypeShell({
   eyebrow,
   title,
@@ -80,16 +100,19 @@ export function PrototypeShell({
   compact?: boolean;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [suiteNavOpen, setSuiteNavOpen] = useState(false);
-  const [headerCounts, setHeaderCounts] = useState({ cart: 0, notifications: 0 });
-  const [sessionRole, setSessionRole] = useState("");
+  const [headerCounts, setHeaderCounts] = useState(getCachedHeaderCounts);
+  const [sessionRole, setSessionRole] = useState(getCachedSessionRole);
   const activeApp = useMemo(() => {
     if (pathname.startsWith("/storefront")) return "storefront";
     if (pathname.startsWith("/finance")) return "finance";
-    if (pathname.startsWith("/admin") || pathname.startsWith("/operations") || pathname.startsWith("/insights")) return "admin";
+    if (pathname.startsWith("/operations")) return "operations";
+    if (pathname.startsWith("/insights")) return "insights";
+    if (pathname.startsWith("/admin")) return "admin";
     return "overview";
   }, [pathname]);
-  const appNavItems = activeApp === "overview" ? [] : bottomNav[activeApp] ?? [];
+  const appNavItems = useMemo(() => (activeApp === "overview" ? [] : bottomNav[activeApp] ?? []), [activeApp]);
   const appName =
     activeApp === "storefront"
       ? "Frontstore Web"
@@ -104,7 +127,9 @@ export function PrototypeShell({
     fetch("/api/auth/session")
       .then((response) => response.json())
       .then((session) => {
-        if (active) setSessionRole(String(session.role ?? ""));
+        const role = String(session.role ?? "");
+        window.sessionStorage.setItem("jbd-session-role", role);
+        if (active) setSessionRole(role);
       })
       .catch(() => undefined);
     return () => {
@@ -115,16 +140,40 @@ export function PrototypeShell({
   useEffect(() => {
     if (activeApp !== "storefront") return;
     let active = true;
+    const cachedHeader = window.sessionStorage.getItem("jbd-header-counts");
+    if (cachedHeader) {
+      try {
+        const parsed = JSON.parse(cachedHeader) as { cart?: number; notifications?: number; cachedAt?: number };
+        if (parsed.cachedAt && Date.now() - parsed.cachedAt < 4_000) {
+          return () => {
+            active = false;
+          };
+        }
+      } catch {
+        window.sessionStorage.removeItem("jbd-header-counts");
+      }
+    }
     fetch("/api/header-status")
       .then((response) => response.json())
       .then((data) => {
-        if (active) setHeaderCounts({ cart: Number(data.cart ?? 0), notifications: Number(data.notifications ?? 0) });
+        const nextCounts = { cart: Number(data.cart ?? 0), notifications: Number(data.notifications ?? 0) };
+        window.sessionStorage.setItem("jbd-header-counts", JSON.stringify({ ...nextCounts, cachedAt: Date.now() }));
+        if (active) setHeaderCounts(nextCounts);
       })
       .catch(() => undefined);
     return () => {
       active = false;
     };
   }, [activeApp]);
+
+  useEffect(() => {
+    const hrefs = new Set<string>();
+    appNavItems.forEach((item) => hrefs.add(item.href));
+    navItems.forEach((item) => {
+      if (item.href !== "/finance" || sessionRole === "finance") hrefs.add(item.href);
+    });
+    hrefs.forEach((href) => router.prefetch(href));
+  }, [appNavItems, router, sessionRole]);
 
   return (
     <main
@@ -192,10 +241,11 @@ export function PrototypeShell({
                       ? pathname === "/"
                       : pathname.startsWith(item.href);
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex h-9 items-center justify-center gap-2 rounded-full px-3 text-xs font-semibold ${
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  prefetch
+                  className={`flex h-9 items-center justify-center gap-2 rounded-full px-3 text-xs font-semibold ${
                       active ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-700"
                     }`}
                   >
@@ -264,6 +314,7 @@ export function PrototypeShell({
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch
                   className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-semibold ${
                     active ? "bg-emerald-50 text-emerald-800" : "text-slate-500"
                   }`}
@@ -387,6 +438,7 @@ function TopAction({
   return (
     <Link
       href={href}
+      prefetch
       className={`flex h-9 shrink-0 items-center justify-center gap-2 rounded-full px-3 text-xs font-semibold md:h-10 md:text-sm ${
         dark ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-700"
       }`}

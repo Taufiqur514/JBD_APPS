@@ -105,6 +105,21 @@ export type DbNotification = {
 };
 
 let seedPromise: Promise<void> | undefined;
+const readCache = new Map<string, { expiresAt: number; value: unknown }>();
+const DEFAULT_READ_CACHE_MS = 12_000;
+const FAST_READ_CACHE_MS = 30_000;
+
+async function cachedRead<T>(key: string, loader: () => Promise<T>, ttl = DEFAULT_READ_CACHE_MS): Promise<T> {
+  const cached = readCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.value as T;
+  const value = await loader();
+  readCache.set(key, { value, expiresAt: Date.now() + ttl });
+  return value;
+}
+
+export function invalidateMvpCache() {
+  readCache.clear();
+}
 
 export async function ensureSeed() {
   if (!seedPromise) {
@@ -298,9 +313,11 @@ async function ensureOperationalSeed() {
 }
 
 export async function getProducts() {
-  await ensureSeed();
-  const db = await getDb();
-  return db.collection<DbProduct>("products").find({ active: true }).sort({ updatedAt: -1 }).toArray();
+  return cachedRead("products:active", async () => {
+    await ensureSeed();
+    const db = await getDb();
+    return db.collection<DbProduct>("products").find({ active: true }).sort({ updatedAt: -1 }).toArray();
+  });
 }
 
 export async function getProduct(slug: string) {
@@ -309,140 +326,174 @@ export async function getProduct(slug: string) {
 }
 
 export async function getInventory() {
-  await ensureSeed();
-  const db = await getDb();
-  return db.collection("inventory").find().toArray();
+  return cachedRead("inventory:all", async () => {
+    await ensureSeed();
+    const db = await getDb();
+    return db.collection("inventory").find().toArray();
+  }, FAST_READ_CACHE_MS);
 }
 
 export async function getAddresses() {
-  await ensureSeed();
-  const db = await getDb();
-  return db.collection("addresses").find({ userId: demoUserId }).toArray();
-}
-
-export async function getCartLines() {
-  await ensureSeed();
-  const db = await getDb();
-  const cart = await db.collection("carts").findOne({ userId: demoUserId, status: "active" });
-  const products = await getProducts();
-  const items = (cart?.items ?? []) as Array<{ productSlug: string; qty: number; variant: string; note: string }>;
-  return items.map((item) => {
-    const product = products.find((entry) => entry.slug === item.productSlug) ?? products[0];
-    return { ...item, product, lineTotal: product.numericPrice * item.qty };
+  return cachedRead(`addresses:${demoUserId}`, async () => {
+    await ensureSeed();
+    const db = await getDb();
+    return db.collection("addresses").find({ userId: demoUserId }).toArray();
   });
 }
 
+export async function getCartLines() {
+  return cachedRead(`cartLines:${demoUserId}`, async () => {
+    await ensureSeed();
+    const db = await getDb();
+    const cart = await db.collection("carts").findOne({ userId: demoUserId, status: "active" });
+    const products = await getProducts();
+    const items = (cart?.items ?? []) as Array<{ productSlug: string; qty: number; variant: string; note: string }>;
+    return items.map((item) => {
+      const product = products.find((entry) => entry.slug === item.productSlug) ?? products[0];
+      return { ...item, product, lineTotal: product.numericPrice * item.qty };
+    });
+  }, FAST_READ_CACHE_MS);
+}
+
 export async function getOrderSummaryFromCart() {
-  const lines = await getCartLines();
-  const db = await getDb();
-  const [promoRules, vouchers] = await Promise.all([
-    db.collection<DbPromoRule>("promoRules").find({ status: "active" }).toArray(),
-    db.collection<{ code: string; type: string; value: number; active: boolean; minSpend: number }>("vouchers").find({ active: true }).toArray(),
-  ]);
-  const subtotal = lines.reduce((total, line) => total + line.lineTotal, 0);
-  const qty = lines.reduce((total, line) => total + line.qty, 0);
-  const selectedVoucher = vouchers.find((voucher) => voucher.code === "JBD25");
-  const voucherRule = promoRules.find((rule) => rule.type === "voucher");
-  const voucherEligible = Boolean(selectedVoucher && subtotal >= selectedVoucher.minSpend);
-  const tierRule = promoRules.find((rule) => rule.type === "tier-pricing" && qty >= 12);
-  const bundleRule = promoRules.find((rule) => rule.type === "bundle" && new Set(lines.map((line) => line.product.slug)).size >= 3);
-  const voucherDiscount = voucherEligible ? selectedVoucher?.value ?? 0 : 0;
-  const tierDiscount = tierRule ? Math.round(subtotal * 0.08) : 0;
-  const bundleDiscount = bundleRule ? Math.round(subtotal * 0.05) : 0;
-  const discount = voucherDiscount + tierDiscount + bundleDiscount;
-  const shipping = lines.length ? 18000 : 0;
-  const insurance = lines.length ? 3000 : 0;
-  const pointsUsed = lines.length ? 10000 : 0;
-  return {
-    subtotal,
-    discount,
-    voucherDiscount,
-    voucherEligible,
-    voucherMinSpend: selectedVoucher?.minSpend ?? 0,
-    shipping,
-    insurance,
-    pointsUsed,
-    total: Math.max(0, subtotal - discount - pointsUsed + shipping + insurance),
-    appliedPromos: [voucherEligible ? voucherRule?.id : undefined, tierRule?.id, bundleRule?.id].filter(Boolean),
-  };
+  return cachedRead(`orderSummary:${demoUserId}`, async () => {
+    const lines = await getCartLines();
+    const db = await getDb();
+    const [promoRules, vouchers] = await Promise.all([
+      db.collection<DbPromoRule>("promoRules").find({ status: "active" }).toArray(),
+      db.collection<{ code: string; type: string; value: number; active: boolean; minSpend: number }>("vouchers").find({ active: true }).toArray(),
+    ]);
+    const subtotal = lines.reduce((total, line) => total + line.lineTotal, 0);
+    const qty = lines.reduce((total, line) => total + line.qty, 0);
+    const selectedVoucher = vouchers.find((voucher) => voucher.code === "JBD25");
+    const voucherRule = promoRules.find((rule) => rule.type === "voucher");
+    const voucherEligible = Boolean(selectedVoucher && subtotal >= selectedVoucher.minSpend);
+    const tierRule = promoRules.find((rule) => rule.type === "tier-pricing" && qty >= 12);
+    const bundleRule = promoRules.find((rule) => rule.type === "bundle" && new Set(lines.map((line) => line.product.slug)).size >= 3);
+    const voucherDiscount = voucherEligible ? selectedVoucher?.value ?? 0 : 0;
+    const tierDiscount = tierRule ? Math.round(subtotal * 0.08) : 0;
+    const bundleDiscount = bundleRule ? Math.round(subtotal * 0.05) : 0;
+    const discount = voucherDiscount + tierDiscount + bundleDiscount;
+    const shipping = lines.length ? 18000 : 0;
+    const insurance = lines.length ? 3000 : 0;
+    const pointsUsed = lines.length ? 10000 : 0;
+    return {
+      subtotal,
+      discount,
+      voucherDiscount,
+      voucherEligible,
+      voucherMinSpend: selectedVoucher?.minSpend ?? 0,
+      shipping,
+      insurance,
+      pointsUsed,
+      total: Math.max(0, subtotal - discount - pointsUsed + shipping + insurance),
+      appliedPromos: [voucherEligible ? voucherRule?.id : undefined, tierRule?.id, bundleRule?.id].filter(Boolean),
+    };
+  }, FAST_READ_CACHE_MS);
 }
 
 export async function getOrders() {
-  await ensureSeed();
-  const db = await getDb();
-  return db.collection<DbOrder>("orders").find({}).sort({ createdAt: -1 }).toArray();
+  return cachedRead("orders:all", async () => {
+    await ensureSeed();
+    const db = await getDb();
+    return db.collection<DbOrder>("orders").find({}).sort({ createdAt: -1 }).toArray();
+  }, FAST_READ_CACHE_MS);
 }
 
 export async function getRecipes() {
-  await ensureSeed();
-  const db = await getDb();
-  return db.collection<DbRecipe>("recipes").find({}).sort({ createdAt: -1 }).toArray();
+  return cachedRead("recipes:all", async () => {
+    await ensureSeed();
+    const db = await getDb();
+    return db.collection<DbRecipe>("recipes").find({}).sort({ createdAt: -1 }).toArray();
+  });
 }
 
 export async function getAssets() {
-  await ensureSeed();
-  const db = await getDb();
-  return db.collection("assets").find({}).sort({ createdAt: -1 }).toArray();
+  return cachedRead("assets:all", async () => {
+    await ensureSeed();
+    const db = await getDb();
+    return db.collection("assets").find({}).sort({ createdAt: -1 }).toArray();
+  });
 }
 
 export async function getUsers() {
-  await ensureSeed();
-  const db = await getDb();
-  return db.collection<DbUser>("users").find({}).sort({ role: 1, name: 1 }).toArray();
+  return cachedRead("users:all", async () => {
+    await ensureSeed();
+    const db = await getDb();
+    return db.collection<DbUser>("users").find({}).sort({ role: 1, name: 1 }).toArray();
+  });
 }
 
 export async function getCrmProfiles() {
-  await ensureSeed();
-  const db = await getDb();
-  return db.collection("crmProfiles").find({}).sort({ totalSpend: -1 }).toArray();
+  return cachedRead("crmProfiles:all", async () => {
+    await ensureSeed();
+    const db = await getDb();
+    return db.collection("crmProfiles").find({}).sort({ totalSpend: -1 }).toArray();
+  });
 }
 
 export async function getPromoRules() {
-  await ensureSeed();
-  const db = await getDb();
-  return db.collection<DbPromoRule>("promoRules").find({}).sort({ status: 1, startsAt: -1 }).toArray();
+  return cachedRead("promoRules:all", async () => {
+    await ensureSeed();
+    const db = await getDb();
+    return db.collection<DbPromoRule>("promoRules").find({}).sort({ status: 1, startsAt: -1 }).toArray();
+  });
 }
 
 export async function getLedger() {
-  await ensureSeed();
-  const db = await getDb();
-  return db.collection<DbLedgerEntry>("ledger").find({}).sort({ date: -1 }).toArray();
+  return cachedRead("ledger:all", async () => {
+    await ensureSeed();
+    const db = await getDb();
+    return db.collection<DbLedgerEntry>("ledger").find({}).sort({ date: -1 }).toArray();
+  }, FAST_READ_CACHE_MS);
 }
 
 export async function getWarehouseStocks() {
-  await ensureSeed();
-  const db = await getDb();
-  return db.collection<DbWarehouseStock>("warehouseStocks").find({}).sort({ warehouseId: 1, fifoRank: 1 }).toArray();
+  return cachedRead("warehouseStocks:all", async () => {
+    await ensureSeed();
+    const db = await getDb();
+    return db.collection<DbWarehouseStock>("warehouseStocks").find({}).sort({ warehouseId: 1, fifoRank: 1 }).toArray();
+  }, FAST_READ_CACHE_MS);
 }
 
 export async function getAnalyticsEvents() {
-  await ensureSeed();
-  const db = await getDb();
-  return db.collection<DbEvent>("events").find({}).sort({ createdAt: -1 }).toArray();
+  return cachedRead("events:all", async () => {
+    await ensureSeed();
+    const db = await getDb();
+    return db.collection<DbEvent>("events").find({}).sort({ createdAt: -1 }).toArray();
+  }, FAST_READ_CACHE_MS);
 }
 
 export async function getNotifications() {
-  await ensureSeed();
-  const db = await getDb();
-  return db.collection<DbNotification>("notifications").find({}).sort({ createdAt: -1 }).toArray();
+  return cachedRead("notifications:all", async () => {
+    await ensureSeed();
+    const db = await getDb();
+    return db.collection<DbNotification>("notifications").find({}).sort({ createdAt: -1 }).toArray();
+  }, FAST_READ_CACHE_MS);
 }
 
 export async function getCustomerProfile(userId = demoUserId) {
-  await ensureSeed();
-  const db = await getDb();
-  return db.collection("crmProfiles").findOne({ userId });
+  return cachedRead(`customerProfile:${userId}`, async () => {
+    await ensureSeed();
+    const db = await getDb();
+    return db.collection("crmProfiles").findOne({ userId });
+  }, FAST_READ_CACHE_MS);
 }
 
 export async function getVouchers() {
-  await ensureSeed();
-  const db = await getDb();
-  return db.collection("vouchers").find({ active: true }).sort({ code: 1 }).toArray();
+  return cachedRead("vouchers:active", async () => {
+    await ensureSeed();
+    const db = await getDb();
+    return db.collection("vouchers").find({ active: true }).sort({ code: 1 }).toArray();
+  });
 }
 
 export async function getReviews() {
-  await ensureSeed();
-  const db = await getDb();
-  return db.collection("reviews").find({}).sort({ createdAt: -1 }).toArray();
+  return cachedRead("reviews:all", async () => {
+    await ensureSeed();
+    const db = await getDb();
+    return db.collection("reviews").find({}).sort({ createdAt: -1 }).toArray();
+  }, FAST_READ_CACHE_MS);
 }
 
 export async function trackEvent(type: string, actorId = demoUserId, channel = "storefront", value?: number, meta?: Record<string, string | number>) {
@@ -457,6 +508,7 @@ export async function trackEvent(type: string, actorId = demoUserId, channel = "
     meta,
     createdAt: new Date().toISOString(),
   });
+  invalidateMvpCache();
 }
 
 export async function getOrder(id: string) {
@@ -492,6 +544,7 @@ export async function addToCartAction(formData: FormData) {
       );
     }
   }
+  invalidateMvpCache();
   revalidatePath("/storefront/cart");
   redirect("/storefront/cart");
 }
@@ -524,6 +577,7 @@ export async function createOrderAction() {
     updatedAt: now,
   });
   await db.collection("carts").updateOne({ userId: demoUserId, status: "active" }, { $set: { status: "ordered", orderId: id, updatedAt: now } });
+  invalidateMvpCache();
   revalidatePath("/admin/orders");
   redirect(`/storefront/payment?order=${id}`);
 }
@@ -632,6 +686,7 @@ export async function advanceOrder(id: string, status: DbOrder["status"]) {
       },
     },
   );
+  invalidateMvpCache();
   revalidatePath("/admin");
   revalidatePath("/admin/orders");
   revalidatePath("/operations");
