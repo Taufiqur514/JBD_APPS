@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3001",
     "lint": "eslint",
+    "db:migrate": "node --env-file=.env.local scripts/migrate-supabase.mjs",
     "android:add": "cap add android",
     "android:sync": "cap sync android",
     "android:open": "cap open android"
@@ -15,15 +16,18 @@
     "@capacitor/android": "^8.4.0",
     "@capacitor/cli": "^8.4.0",
     "@capacitor/core": "^8.4.0",
+    "@supabase/supabase-js": "^2.108.0",
     "lucide-react": "^1.17.0",
     "mongodb": "^7.2.0",
     "next": "16.2.7",
+    "pg": "^8.21.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

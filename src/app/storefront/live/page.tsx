@@ -22,8 +22,8 @@ export default async function StorefrontLivePage() {
       subtitle: recipe.product ?? recipe.keyword,
       tag: "RESEP",
       href: `/storefront/products/${recipe.productSlug}`,
-      mediaUrl: undefined,
-      mediaType: "recipe" as const,
+      mediaUrl: recipe.mediaUrl,
+      mediaType: recipe.mediaUrl ? "image" as const : "recipe" as const,
     })),
   ];
 

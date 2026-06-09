@@ -7,6 +7,7 @@ import { getAssets, getRecipes } from "@/lib/mvp-store";
 export const dynamic = "force-dynamic";
 
 const typeIcon = {
+  image: ImageIcon,
   banner: ImageIcon,
   video: Video,
   "product-video": Video,
@@ -30,7 +31,7 @@ export default async function AdminAssetsPage() {
       placement: "Resep + Live/Reel",
       status: recipe.status ?? "published",
       tone: recipe.tone ?? "bg-amber-100",
-      mediaUrl: "",
+      mediaUrl: recipe.mediaUrl ?? "",
     })),
   ];
 
@@ -100,7 +101,8 @@ export default async function AdminAssetsPage() {
             <div className="mt-4 grid gap-3">
               <label className="grid gap-2 text-sm font-medium text-slate-700">
                 Tipe konten
-                <select name="type" className="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm">
+                <select name="type" defaultValue="recipe" className="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm">
+                  <option value="image">Gambar promosi</option>
                   <option value="recipe">Resep</option>
                   <option value="banner">Banner carousel</option>
                   <option value="video">Live video</option>
@@ -114,6 +116,10 @@ export default async function AdminAssetsPage() {
               <label className="grid gap-2 text-sm font-medium text-slate-700">
                 Keyword
                 <input name="keyword" defaultValue="chocolate frappe cafe" className="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm" />
+              </label>
+              <label className="grid gap-2 text-sm font-medium text-slate-700">
+                Caption / deskripsi
+                <textarea name="caption" rows={4} defaultValue="Inspirasi menu minuman menggunakan powder JBD." className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm" />
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
                 Produk terkait
@@ -130,6 +136,14 @@ export default async function AdminAssetsPage() {
                   <option>Homepage carousel</option>
                   <option>Product detail</option>
                   <option>Voucher campaign</option>
+                </select>
+              </label>
+              <label className="grid gap-2 text-sm font-medium text-slate-700">
+                Status publikasi
+                <select name="status" defaultValue="published" className="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm">
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                  <option value="scheduled">Scheduled</option>
                 </select>
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">

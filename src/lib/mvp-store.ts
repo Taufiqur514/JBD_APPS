@@ -1,7 +1,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { listContentAssets, listProductionRecipes } from "./content-store";
 import { getDb, demoUserId } from "./db";
 import { featuredProducts, productCategories } from "./prototype-data";
+import {
+  listProductionInventory,
+  listProductionProducts,
+  listProductionWarehouseStocks,
+} from "./product-store";
+import { isSupabaseConfigured } from "./supabase-server";
 
 export type DbProduct = (typeof featuredProducts)[number] & {
   sku: string;
@@ -27,6 +34,7 @@ export type DbRecipe = {
   keyword: string;
   productSlug: string;
   product?: string;
+  mediaUrl?: string;
   time?: string;
   margin?: string;
   tone?: string;
@@ -314,6 +322,9 @@ async function ensureOperationalSeed() {
 
 export async function getProducts() {
   return cachedRead("products:active", async () => {
+    if (isSupabaseConfigured()) {
+      return listProductionProducts() as Promise<DbProduct[]>;
+    }
     await ensureSeed();
     const db = await getDb();
     return db.collection<DbProduct>("products").find({ active: true }).sort({ updatedAt: -1 }).toArray();
@@ -327,6 +338,7 @@ export async function getProduct(slug: string) {
 
 export async function getInventory() {
   return cachedRead("inventory:all", async () => {
+    if (isSupabaseConfigured()) return listProductionInventory();
     await ensureSeed();
     const db = await getDb();
     return db.collection("inventory").find().toArray();
@@ -402,6 +414,24 @@ export async function getOrders() {
 
 export async function getRecipes() {
   return cachedRead("recipes:all", async () => {
+    if (isSupabaseConfigured()) {
+      const recipes = await listProductionRecipes();
+      return recipes.map(
+        (recipe): DbRecipe => ({
+          title: recipe.title,
+          keyword: recipe.keywords.join(" "),
+          productSlug: recipe.productSlug ?? "chocolate-premium-500g",
+          product: recipe.description,
+          mediaUrl: recipe.mediaUrl,
+          time: `${recipe.preparationMinutes} menit`,
+          margin: "Production content",
+          tone: "bg-emerald-100",
+          type: "recipe",
+          status: recipe.status,
+          createdAt: recipe.createdAt,
+        }),
+      );
+    }
     await ensureSeed();
     const db = await getDb();
     return db.collection<DbRecipe>("recipes").find({}).sort({ createdAt: -1 }).toArray();
@@ -410,6 +440,22 @@ export async function getRecipes() {
 
 export async function getAssets() {
   return cachedRead("assets:all", async () => {
+    if (isSupabaseConfigured()) {
+      const assets = await listContentAssets();
+      return assets.filter((asset) => asset.type !== "recipe").map((asset) => ({
+        id: asset.id,
+        type: asset.type === "product_video" ? "product-video" : asset.type,
+        title: asset.title,
+        placement: asset.placement,
+        productSlug: asset.productSlug,
+        mediaUrl: asset.mediaUrl,
+        status: asset.status,
+        createdAt: asset.createdAt,
+        caption: asset.caption,
+        mimeType: asset.mimeType,
+        fileSize: asset.fileSize,
+      }));
+    }
     await ensureSeed();
     const db = await getDb();
     return db.collection("assets").find({}).sort({ createdAt: -1 }).toArray();
@@ -450,6 +496,7 @@ export async function getLedger() {
 
 export async function getWarehouseStocks() {
   return cachedRead("warehouseStocks:all", async () => {
+    if (isSupabaseConfigured()) return listProductionWarehouseStocks();
     await ensureSeed();
     const db = await getDb();
     return db.collection<DbWarehouseStock>("warehouseStocks").find({}).sort({ warehouseId: 1, fifoRank: 1 }).toArray();

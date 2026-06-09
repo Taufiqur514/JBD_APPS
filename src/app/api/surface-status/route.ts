@@ -6,6 +6,7 @@ import {
   getOrders,
   getProducts,
 } from "@/lib/mvp-store";
+import { isSupabaseConfigured } from "@/lib/supabase-server";
 
 export async function GET() {
   const [products, orders, cartLines, events, notifications] = await Promise.all([
@@ -24,7 +25,7 @@ export async function GET() {
       adminWeb: "/admin",
     },
     sharedBackend: {
-      database: "mongodb://127.0.0.1:27017/jbd_commerce",
+      database: isSupabaseConfigured() ? "Supabase PostgreSQL + Storage" : "MongoDB development fallback",
       products: products.length,
       orders: orders.length,
       cartItems: cartLines.reduce((sum, line) => sum + line.qty, 0),

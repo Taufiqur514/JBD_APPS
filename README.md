@@ -1,3 +1,16 @@
+# JBD Digital Commerce
+
+Production-oriented commerce platform for the JBD powder drink ecosystem.
+
+## Supabase Setup
+
+1. Copy `.env.example` to `.env.local`.
+2. Configure the Supabase URL, publishable key, IPv4 Supavisor session-pooler `DATABASE_URL`, server-only `SUPABASE_SECRET_KEY`, and `JBD_AUTH_SECRET`.
+3. Apply schema changes with `npm run db:migrate`.
+4. Run `npm run build` and `npm run start`.
+
+Images and videos are stored in the public `commerce-media` bucket. Metadata, products, inventory, recipes, and the remaining commerce entities live in PostgreSQL. Upload writes only run through the server-side Admin route; the Supabase secret key must never use a `NEXT_PUBLIC_` prefix.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
