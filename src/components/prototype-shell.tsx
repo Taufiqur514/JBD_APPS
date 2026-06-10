@@ -134,6 +134,7 @@ export function PrototypeShell({
   const desktopConsoleApp = activeApp === "admin" || activeApp === "operations" || activeApp === "insights" || activeApp === "finance"
     ? activeApp
     : null;
+  const useWideDesktop = activeApp === "storefront" || Boolean(desktopConsoleApp);
 
   useEffect(() => {
     let active = true;
@@ -207,7 +208,11 @@ export function PrototypeShell({
       }`}
     >
       <header className="sticky top-0 z-30 border-b border-emerald-100 bg-white/94 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 px-3 py-2 lg:px-8 lg:py-3">
+        <div
+          className={`mx-auto flex w-full flex-col gap-2 px-3 py-2 lg:py-3 ${
+            useWideDesktop ? "max-w-none lg:px-6 2xl:px-8" : "max-w-7xl lg:px-8"
+          }`}
+        >
           <div className="flex items-center justify-between gap-3">
             <Link href="/" className="flex min-w-0 items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-sm font-semibold text-white lg:h-11 lg:w-11">
@@ -286,9 +291,11 @@ export function PrototypeShell({
         </div>
       </header>
 
-      <div className={`mx-auto w-full px-4 py-5 lg:px-8 lg:py-7 ${
-        activeApp === "storefront" ? "max-w-[1500px]" : "max-w-7xl"
-      }`}>
+      <div
+        className={`mx-auto w-full px-4 py-5 lg:py-7 ${
+          useWideDesktop ? "max-w-none lg:px-6 2xl:px-8" : "max-w-7xl lg:px-8"
+        }`}
+      >
         <div className={desktopConsoleApp ? "lg:grid lg:grid-cols-[248px_minmax(0,1fr)] lg:gap-6" : ""}>
           {desktopConsoleApp ? <DesktopConsoleRail activeApp={desktopConsoleApp} pathname={pathname} sessionRole={sessionRole} /> : null}
           <section className="flex min-w-0 flex-col gap-6">

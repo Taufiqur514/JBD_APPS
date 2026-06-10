@@ -158,7 +158,7 @@ export default async function StorefrontPage({
             {filter ? <span className="rounded-full bg-slate-50 px-3 py-1">Filter: {filter}</span> : null}
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-6">
+          <div className="mt-5 grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">
             {products.map((product) => (
               <Link
                 key={product.slug}
