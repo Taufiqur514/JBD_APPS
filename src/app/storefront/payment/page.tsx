@@ -2,6 +2,7 @@ import { BadgeDollarSign, Building2, CreditCard, QrCode, Smartphone } from "luci
 import { PrototypeShell } from "@/components/prototype-shell";
 import { formatRupiah } from "@/lib/commerce";
 import { getOrder, getOrders } from "@/lib/mvp-store";
+import { createPaymentIntent } from "@/lib/payment-provider";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ export default async function PaymentPage({
   const orders = await getOrders();
   const order = orderId ? await getOrder(orderId) : orders[0];
   const total = order?.total ?? 0;
+  const intent = createPaymentIntent({ orderId: order?.id ?? "DRAFT", amount: total, method: "QRIS" });
 
   return (
     <PrototypeShell compact eyebrow="Payment" title="Pilih metode pembayaran" description="">
@@ -64,8 +66,14 @@ export default async function PaymentPage({
                 <p className="text-sm text-slate-500">Total pembayaran</p>
                 <p className="mt-1 text-3xl font-semibold text-slate-950">{formatRupiah(total)}</p>
                 <p className="mt-4 text-sm leading-6 text-slate-600">
-                  Simulasi payment gateway. Klik tombol bayar untuk melanjutkan ke payment success.
+                  Provider {intent.provider}. Reference pembayaran dibuat untuk order ini dan webhook wajib
+                  melewati validasi signature sebelum status berubah.
                 </p>
+                <div className="mt-4 rounded-2xl bg-white p-3 text-xs text-slate-500">
+                  <p className="font-semibold text-slate-900">Reference</p>
+                  <p className="mt-1 break-all">{intent.reference}</p>
+                  {intent.qrString ? <p className="mt-2 break-all">QR: {intent.qrString}</p> : null}
+                </div>
                 <form action="/api/payment" method="post">
                   <input type="hidden" name="orderId" value={order?.id ?? ""} />
                   <button

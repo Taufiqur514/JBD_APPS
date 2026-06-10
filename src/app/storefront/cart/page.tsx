@@ -23,25 +23,30 @@ export default async function CartPage() {
 
           <div className="mt-5 space-y-4">
             {lines.map((line) => (
-              <div key={line.product.slug} className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-[96px_1fr_auto]">
-                <div className={`h-24 rounded-2xl ${line.product.imageTone}`} />
+              <div key={`${line.product.slug}-${line.variant}`} className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-[96px_1fr_auto]">
+                {line.product.coverUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={line.product.coverUrl} alt={line.product.name} className="h-24 w-full rounded-2xl object-cover" />
+                ) : (
+                  <div className={`h-24 rounded-2xl ${line.product.imageTone}`} />
+                )}
                 <div>
                   <p className="font-semibold text-slate-950">{line.product.name}</p>
                   <p className="mt-1 text-sm text-slate-500">{line.variant}</p>
                   <p className="mt-2 text-sm text-slate-600">{line.note}</p>
                   <div className="mt-3 flex h-10 w-fit items-center rounded-full border border-slate-200 bg-white">
-                    <CartUpdateButton slug={line.product.slug} action="dec" label="Kurangi jumlah">
+                    <CartUpdateButton slug={line.product.slug} variant={line.variant} action="dec" label="Kurangi jumlah">
                       <Minus className="h-4 w-4" />
                     </CartUpdateButton>
                     <span className="w-10 text-center text-sm font-semibold">{line.qty}</span>
-                    <CartUpdateButton slug={line.product.slug} action="inc" label="Tambah jumlah">
+                    <CartUpdateButton slug={line.product.slug} variant={line.variant} action="inc" label="Tambah jumlah">
                       <Plus className="h-4 w-4" />
                     </CartUpdateButton>
                   </div>
                 </div>
                 <div className="flex flex-row items-center justify-between gap-4 md:flex-col md:items-end">
                   <p className="text-lg font-semibold text-slate-950">{formatRupiah(line.lineTotal)}</p>
-                  <CartUpdateButton slug={line.product.slug} action="remove" label="Hapus produk" rounded>
+                  <CartUpdateButton slug={line.product.slug} variant={line.variant} action="remove" label="Hapus produk" rounded>
                     <Trash2 className="h-4 w-4" />
                   </CartUpdateButton>
                 </div>
@@ -99,12 +104,14 @@ function SummaryRow({ label, value, strong = false }: { label: string; value: st
 
 function CartUpdateButton({
   slug,
+  variant,
   action,
   label,
   rounded = false,
   children,
 }: {
   slug: string;
+  variant: string;
   action: "inc" | "dec" | "remove";
   label: string;
   rounded?: boolean;
@@ -113,6 +120,7 @@ function CartUpdateButton({
   return (
     <form action="/api/cart/update" method="post">
       <input type="hidden" name="slug" value={slug} />
+      <input type="hidden" name="variant" value={variant} />
       <input type="hidden" name="action" value={action} />
       <button
         type="submit"

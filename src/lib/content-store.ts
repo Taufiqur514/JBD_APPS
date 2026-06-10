@@ -26,6 +26,7 @@ export type ProductionRecipe = {
   slug: string;
   productSlug?: string;
   mediaUrl?: string;
+  mimeType?: string;
   description: string;
   ingredients: string[];
   steps: string[];
@@ -62,6 +63,7 @@ type RecipeRow = {
   slug: string;
   product_slug: string | null;
   media_url: string | null;
+  mime_type: string | null;
   description: string;
   ingredients: unknown;
   steps: unknown;
@@ -113,7 +115,7 @@ export async function listProductionRecipes(options: { publishedOnly?: boolean }
   const publishedClause = options.publishedOnly ? "where recipes.status = 'published'" : "";
   const result = await queryPostgres<RecipeRow>(
     `select recipes.id, recipes.title, recipes.slug, recipes.product_slug,
-      content_assets.media_url, recipes.description, recipes.ingredients, recipes.steps,
+      content_assets.media_url, content_assets.mime_type, recipes.description, recipes.ingredients, recipes.steps,
       recipes.preparation_minutes, recipes.keywords, recipes.status,
       recipes.published_at, recipes.created_at
      from public.recipes
@@ -128,6 +130,7 @@ export async function listProductionRecipes(options: { publishedOnly?: boolean }
       slug: row.slug,
       productSlug: row.product_slug ?? undefined,
       mediaUrl: row.media_url ?? undefined,
+      mimeType: row.mime_type ?? undefined,
       description: row.description,
       ingredients: stringArray(row.ingredients),
       steps: stringArray(row.steps),

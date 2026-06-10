@@ -15,7 +15,7 @@ import {
   Warehouse,
 } from "lucide-react";
 import { PrototypeShell } from "@/components/prototype-shell";
-import { SectionCard } from "@/components/prototype-ui";
+import { FlowHandoff, SectionCard } from "@/components/prototype-ui";
 import {
   adminMetrics,
   adminOrders,
@@ -66,6 +66,15 @@ export default function AdminPage() {
       title="Back Office Dashboard"
       description=""
     >
+      <FlowHandoff
+        steps={[
+          { label: "Customer", title: "Order masuk", text: "Buyer memilih varian, voucher, alamat, dan checkout dari storefront.", href: "/storefront", active: true },
+          { label: "Admin", title: "Validasi order", text: "Order paid dipantau, invoice siap, dan action fulfillment dipilih.", href: "/admin/orders" },
+          { label: "Warehouse", title: "Picking sampai AWB", text: "Operations menerima queue untuk reserve stock, picking, QC, packing, dan pickup.", href: "/operations" },
+          { label: "Insight", title: "Event & performance", text: "Klik, add cart, checkout, payment, dan order status dibaca analytics.", href: "/admin/analytics" },
+        ]}
+      />
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {visibleMetrics.map((metric) => (
           <Link key={metric.label} href={metricLinks[metric.label] ?? "/admin/analytics"} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow-md">

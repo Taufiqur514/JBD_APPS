@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { ArrowLeft, Check, Heart, ShieldCheck, ShoppingCart, Star } from "lucide-react";
+import { ArrowLeft, Check, ShieldCheck, Star } from "lucide-react";
+import { ProductImageCarousel } from "@/components/product-image-carousel";
+import { ProductPurchasePanel } from "@/components/product-purchase-panel";
 import { PrototypeShell } from "@/components/prototype-shell";
 import { featuredProducts } from "@/lib/prototype-data";
 import { getProduct } from "@/lib/mvp-store";
@@ -17,6 +19,9 @@ export default async function ProductDetailPage({
 }) {
   const { slug } = await params;
   const product = await getProduct(slug);
+  const variantDetails: Array<{ name: string; price: number; weightGrams?: number; stock?: number }> = product.variantDetails?.length
+    ? product.variantDetails
+    : product.variants.map((variantName) => ({ name: variantName, price: product.numericPrice, stock: product.stock }));
 
   return (
     <PrototypeShell compact eyebrow="Product Detail" title={product.name} description="">
@@ -30,11 +35,13 @@ export default async function ProductDetailPage({
 
       <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-          <div className={`aspect-square rounded-[24px] ${product.imageTone}`} />
+          <ProductImageCarousel images={product.images} fallbackTone={product.imageTone} productName={product.name} />
           <div className="mt-4 grid grid-cols-4 gap-3">
-            {product.variants.map((variant) => (
-              <div key={variant} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center text-xs text-slate-600">
-                {variant}
+            {variantDetails.map((variant) => (
+              <div key={variant.name} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center text-xs text-slate-600">
+                <p className="font-semibold text-slate-800">{variant.name}</p>
+                {variant.weightGrams ? <p className="mt-1">{variant.weightGrams}g</p> : null}
+                <p className="mt-1 text-emerald-700">Stok {variant.stock ?? 0}</p>
               </div>
             ))}
           </div>
@@ -58,56 +65,7 @@ export default async function ProductDetailPage({
             {product.name}
           </h3>
           <p className="mt-3 text-sm leading-7 text-slate-600">{product.description}</p>
-          <p className="mt-5 text-3xl font-semibold text-slate-950">{product.price}</p>
-
-          <form action="/api/cart" method="post" className="mt-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <p className="text-sm font-semibold text-slate-900">Varian</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {product.variants.map((variant, index) => (
-                    <label key={variant} className="cursor-pointer">
-                      <input className="peer sr-only" type="radio" name="variant" value={variant} defaultChecked={index === 0} />
-                      <span className="inline-flex rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 peer-checked:bg-slate-950 peer-checked:text-white">
-                        {variant}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label htmlFor="qty" className="text-sm font-semibold text-slate-900">
-                  Jumlah
-                </label>
-                <input
-                  id="qty"
-                  name="qty"
-                  type="number"
-                  min={1}
-                  max={99}
-                  defaultValue={1}
-                  className="mt-3 h-11 w-28 rounded-full border border-slate-200 bg-slate-50 px-4 text-center text-sm font-semibold outline-none focus:border-emerald-300"
-                />
-              </div>
-            </div>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <input type="hidden" name="slug" value={product.slug} />
-              <button
-                type="submit"
-                className="hidden h-12 w-full items-center justify-center gap-2 rounded-full bg-emerald-700 px-5 text-sm font-semibold text-white lg:inline-flex"
-              >
-                <ShoppingCart className="h-4 w-4" />
-                Tambah ke keranjang
-              </button>
-              <Link
-                href="/storefront/profile"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-slate-200 px-5 text-sm font-semibold text-slate-700"
-              >
-                <Heart className="h-4 w-4" />
-                Wishlist
-              </Link>
-            </div>
-          </form>
+          <ProductPurchasePanel productSlug={product.slug} variants={variantDetails} />
 
           <div className="mt-6 grid gap-3 md:grid-cols-3">
             <InfoTile title="Estimasi hasil" value="12-16 gelas" />
@@ -123,20 +81,6 @@ export default async function ProductDetailPage({
         <ProductPanel title="Kepercayaan" items={["Bahan higienis", "QC batch", "Aman untuk pengiriman"]} />
       </section>
 
-      <div className="fixed inset-x-0 bottom-20 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
-        <form action="/api/cart" method="post">
-          <input type="hidden" name="slug" value={product.slug} />
-          <input type="hidden" name="variant" value={product.variants[0]} />
-          <input type="hidden" name="qty" value="1" />
-          <button
-            type="submit"
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-emerald-700 text-sm font-semibold text-white"
-          >
-            <ShoppingCart className="h-4 w-4" />
-            Tambah ke keranjang
-          </button>
-        </form>
-      </div>
     </PrototypeShell>
   );
 }

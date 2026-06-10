@@ -1,8 +1,21 @@
 import { getDb, demoUserId } from "@/lib/db";
-import { ensureSeed, getCartLines, getOrderSummaryFromCart, trackEvent } from "@/lib/mvp-store";
+import { ensureSeed, getCartLines, getOrderSummaryFromCart, invalidateMvpCache, trackEvent } from "@/lib/mvp-store";
+import { createProductionOrder } from "@/lib/production-commerce";
 import { redirectResponse } from "@/lib/redirect-response";
+import { enforceRateLimit } from "@/lib/security";
+import { isSupabaseConfigured } from "@/lib/supabase-server";
 
 export async function POST(request: Request) {
+  const limited = await enforceRateLimit({ scope: "checkout:create", limit: 10, windowMs: 60_000 });
+  if (limited) return limited;
+  if (isSupabaseConfigured()) {
+    const lines = await getCartLines();
+    if (!lines.length) return redirectResponse("/storefront", request);
+    const id = await createProductionOrder();
+    await trackEvent("checkout_started", demoUserId, "storefront", undefined, { orderId: id });
+    invalidateMvpCache();
+    return redirectResponse(`/storefront/payment?order=${id}`, request);
+  }
   await ensureSeed();
   const db = await getDb();
   const lines = await getCartLines();

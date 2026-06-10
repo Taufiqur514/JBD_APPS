@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import Link from "next/link";
 import { ArrowRight, ClipboardList } from "lucide-react";
 
 export function MetricCard({
@@ -90,5 +91,38 @@ export function BulletList({ items }: { items: string[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+export function FlowHandoff({
+  steps,
+}: {
+  steps: Array<{ label: string; title: string; text: string; href: string; active?: boolean }>;
+}) {
+  return (
+    <section className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+      <div className="grid gap-3 md:grid-cols-4">
+        {steps.map((step, index) => (
+          <Link
+            key={step.title}
+            href={step.href}
+            className={`relative rounded-2xl border p-4 transition hover:border-emerald-300 hover:bg-white ${
+              step.active ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className={`grid h-8 w-8 place-items-center rounded-full text-xs font-semibold ${step.active ? "bg-emerald-700 text-white" : "bg-white text-slate-700"}`}>
+                {index + 1}
+              </span>
+              <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                {step.label}
+              </span>
+            </div>
+            <p className="mt-4 font-semibold text-slate-950">{step.title}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{step.text}</p>
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }

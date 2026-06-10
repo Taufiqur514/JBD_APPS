@@ -41,6 +41,10 @@ function keywordList(value: string) {
   return [...new Set(value.split(/[,\s]+/).map((item) => item.trim().toLowerCase()).filter(Boolean))].slice(0, 20);
 }
 
+function linesToJson(value: string) {
+  return JSON.stringify(value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean));
+}
+
 export async function POST(request: Request) {
   const cookieStore = await cookies();
   const session = await verifySessionToken(cookieStore.get("jbd_session")?.value);
@@ -58,10 +62,16 @@ export async function POST(request: Request) {
   const productSlug = String(formData.get("productSlug") ?? "").trim();
   const keyword = String(formData.get("keyword") ?? title).trim();
   const caption = String(formData.get("caption") ?? "").trim();
+  const ingredients = linesToJson(String(formData.get("ingredients") ?? ""));
+  const steps = linesToJson(String(formData.get("steps") ?? ""));
+  const preparationMinutes = Math.max(1, Math.min(120, Number(formData.get("preparationMinutes") ?? 3) || 3));
   const uploadedMedia = formData.get("media");
   const externalMediaUrl = String(formData.get("mediaUrl") ?? "").trim();
 
   if (!title) return new Response("Judul konten wajib diisi.", { status: 400 });
+  if (type === "product-video" && !productSlug) {
+    return new Response("Video produk wajib memilih produk terkait.", { status: 400 });
+  }
   if (externalMediaUrl && !externalMediaUrl.startsWith("https://")) {
     return new Response("URL media harus menggunakan HTTPS.", { status: 400 });
   }
@@ -150,10 +160,10 @@ export async function POST(request: Request) {
         values (
           $1, $2,
           (select id from public.products where slug = $3 limit 1), $3, $4,
-          $5, '[]'::jsonb, '[]'::jsonb, 3, $6::text[],
-          $7::public.publish_status, $8
+          $5, $6::jsonb, $7::jsonb, $8, $9::text[],
+          $10::public.publish_status, $11
         )`,
-        [title, contentSlug, productSlug || null, inserted.rows[0].id, caption, keywords, status, publishedAt],
+        [title, contentSlug, productSlug || null, inserted.rows[0].id, caption, ingredients, steps, preparationMinutes, keywords, status, publishedAt],
       );
     }
   } catch (error) {

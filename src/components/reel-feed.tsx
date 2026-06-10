@@ -32,6 +32,7 @@ export function ReelFeed({ items }: { items: ReelItem[] }) {
   const [liked, setLiked] = useState<string[]>([]);
   const [activeId, setActiveId] = useState(items[0]?.id ?? "");
   const [sharedId, setSharedId] = useState("");
+  const [videoErrorId, setVideoErrorId] = useState("");
 
   useEffect(() => {
     const root = containerRef.current;
@@ -93,10 +94,20 @@ export function ReelFeed({ items }: { items: ReelItem[] }) {
               {item.mediaUrl && item.mediaType === "video" ? (
                 <video
                   src={item.mediaUrl}
+                  autoPlay={index === 0}
+                  controls
                   muted={muted}
                   loop
                   playsInline
                   preload={index < 2 ? "auto" : "metadata"}
+                  onPlay={() => {
+                    setActiveId(item.id);
+                    setPlaying(true);
+                  }}
+                  onPause={() => {
+                    if (activeId === item.id) setPlaying(false);
+                  }}
+                  onError={() => setVideoErrorId(item.id)}
                   className="absolute inset-0 h-full w-full object-cover"
                 />
               ) : item.mediaUrl ? (
@@ -111,6 +122,11 @@ export function ReelFeed({ items }: { items: ReelItem[] }) {
               )}
 
               <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,.2)_0%,transparent_35%,rgba(0,0,0,.82)_100%)]" />
+              {videoErrorId === item.id ? (
+                <div className="absolute inset-x-5 top-24 z-20 rounded-2xl bg-black/65 p-4 text-sm leading-6 text-white backdrop-blur">
+                  Video belum bisa diputar oleh browser. Gunakan MP4 H.264/AAC atau WebM agar kompatibel di mobile.
+                </div>
+              ) : null}
 
               <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between p-4 text-white">
                 <span className="rounded-full bg-black/35 px-3 py-1.5 text-xs font-semibold backdrop-blur">

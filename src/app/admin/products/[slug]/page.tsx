@@ -1,5 +1,5 @@
 import { featuredProducts } from "@/lib/prototype-data";
-import { getProduct } from "@/lib/mvp-store";
+import { getProduct, getProductCategories } from "@/lib/mvp-store";
 import { AdminProductForm } from "../new/product-form";
 
 export const dynamic = "force-dynamic";
@@ -10,10 +10,13 @@ export function generateStaticParams() {
 
 export default async function EditAdminProductPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const { slug } = await params;
-  const product = await getProduct(slug);
-  return <AdminProductForm mode="edit" slug={slug} initialProduct={JSON.parse(JSON.stringify(product))} />;
+  const query = await searchParams;
+  const [product, categories] = await Promise.all([getProduct(slug), getProductCategories()]);
+  return <AdminProductForm mode="edit" slug={slug} activeTab={query.tab} initialProduct={JSON.parse(JSON.stringify(product))} categoryOptions={categories} />;
 }

@@ -10,6 +10,7 @@ import {
   BookOpen,
   BrainCircuit,
   ChartColumn,
+  ClipboardCheck,
   Home,
   FileSpreadsheet,
   Image as ImageIcon,
@@ -24,12 +25,20 @@ import {
   ShieldCheck,
   ShoppingCart,
   Store,
+  Tags,
   Truck,
   User,
   Video,
   Warehouse,
 } from "lucide-react";
 import { navItems, topStatus } from "@/lib/prototype-data";
+
+type TopActionItem = {
+  href: string;
+  label: string;
+  icon: typeof Store;
+  dark?: boolean;
+};
 
 const bottomNav = {
   storefront: [
@@ -102,8 +111,8 @@ export function PrototypeShell({
   const pathname = usePathname();
   const router = useRouter();
   const [suiteNavOpen, setSuiteNavOpen] = useState(false);
-  const [headerCounts, setHeaderCounts] = useState(getCachedHeaderCounts);
-  const [sessionRole, setSessionRole] = useState(getCachedSessionRole);
+  const [headerCounts, setHeaderCounts] = useState({ cart: 0, notifications: 0 });
+  const [sessionRole, setSessionRole] = useState("");
   const activeApp = useMemo(() => {
     if (pathname.startsWith("/storefront")) return "storefront";
     if (pathname.startsWith("/finance")) return "finance";
@@ -121,9 +130,19 @@ export function PrototypeShell({
         : activeApp === "finance"
           ? "Finance Workspace"
         : "Overview";
+  const isStorefrontHome = activeApp === "storefront" && pathname === "/storefront";
+  const desktopConsoleApp = activeApp === "admin" || activeApp === "operations" || activeApp === "insights" || activeApp === "finance"
+    ? activeApp
+    : null;
 
   useEffect(() => {
     let active = true;
+    const cachedRole = getCachedSessionRole();
+    if (cachedRole) {
+      queueMicrotask(() => {
+        if (active) setSessionRole(cachedRole);
+      });
+    }
     fetch("/api/auth/session")
       .then((response) => response.json())
       .then((session) => {
@@ -140,6 +159,12 @@ export function PrototypeShell({
   useEffect(() => {
     if (activeApp !== "storefront") return;
     let active = true;
+    const cachedCounts = getCachedHeaderCounts();
+    if (cachedCounts.cart || cachedCounts.notifications) {
+      queueMicrotask(() => {
+        if (active) setHeaderCounts(cachedCounts);
+      });
+    }
     const cachedHeader = window.sessionStorage.getItem("jbd-header-counts");
     if (cachedHeader) {
       try {
@@ -178,7 +203,7 @@ export function PrototypeShell({
   return (
     <main
       className={`min-h-screen bg-[linear-gradient(180deg,#f7fbf8_0%,#ffffff_28%,#f6faf7_100%)] text-slate-900 ${
-        activeApp === "overview" ? "" : "pb-24"
+        activeApp === "overview" ? "" : "pb-24 lg:pb-0"
       }`}
     >
       <header className="sticky top-0 z-30 border-b border-emerald-100 bg-white/94 backdrop-blur">
@@ -257,13 +282,17 @@ export function PrototypeShell({
             </nav>
           ) : null}
 
-          {activeApp !== "overview" ? <AppTopBar activeApp={activeApp} headerCounts={headerCounts} /> : null}
+          {activeApp !== "overview" ? <AppTopBar activeApp={activeApp} pathname={pathname} headerCounts={headerCounts} /> : null}
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-7xl px-4 py-5 lg:px-8 lg:py-7">
-        <section className="flex min-w-0 flex-col gap-6">
-          <div className={compact ? "space-y-2" : "space-y-4"}>
+      <div className={`mx-auto w-full px-4 py-5 lg:px-8 lg:py-7 ${
+        activeApp === "storefront" ? "max-w-[1500px]" : "max-w-7xl"
+      }`}>
+        <div className={desktopConsoleApp ? "lg:grid lg:grid-cols-[248px_minmax(0,1fr)] lg:gap-6" : ""}>
+          {desktopConsoleApp ? <DesktopConsoleRail activeApp={desktopConsoleApp} pathname={pathname} sessionRole={sessionRole} /> : null}
+          <section className="flex min-w-0 flex-col gap-6">
+          <div className={`${compact ? "space-y-2" : "space-y-4"} ${isStorefrontHome ? "lg:hidden" : ""}`}>
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
               {eyebrow}
             </div>
@@ -290,10 +319,11 @@ export function PrototypeShell({
           </div>
           {children}
         </section>
+        </div>
       </div>
 
       {appNavItems.length ? (
-        <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/96 px-2 py-2 shadow-[0_-12px_30px_rgba(15,23,42,0.10)] backdrop-blur">
+        <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/96 px-2 py-2 shadow-[0_-12px_30px_rgba(15,23,42,0.10)] backdrop-blur lg:hidden">
           <div className={`mx-auto grid max-w-lg gap-1 ${appNavItems.length === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
             {appNavItems.map((item) => {
               const Icon = item.icon;
@@ -331,11 +361,98 @@ export function PrototypeShell({
   );
 }
 
+function DesktopConsoleRail({
+  activeApp,
+  pathname,
+  sessionRole,
+}: {
+  activeApp: "storefront" | "admin" | "operations" | "insights" | "finance";
+  pathname: string;
+  sessionRole: string;
+}) {
+  const groups = [
+    {
+      label: "Commerce",
+      items: [
+        { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/admin/products", label: "Product catalog", icon: Boxes },
+        { href: "/admin/orders", label: "Order center", icon: ShoppingCart },
+        { href: "/admin/assets", label: "Media library", icon: ImageIcon },
+      ],
+    },
+    {
+      label: "Operations",
+      items: [
+        { href: "/operations", label: "Fulfillment queue", icon: Warehouse },
+        { href: "/operations/picking", label: "Picking", icon: ScanLine },
+        { href: "/operations/packing", label: "Packing & AWB", icon: ClipboardCheck },
+        { href: "/admin/inventory", label: "Inventory/WMS", icon: Boxes },
+      ],
+    },
+    {
+      label: "Growth",
+      items: [
+        { href: "/admin/crm", label: "CRM", icon: User },
+        { href: "/admin/promotions", label: "Promotions", icon: Tags },
+        { href: "/admin/analytics", label: "Analytics", icon: ChartColumn },
+        { href: "/admin/notifications", label: "Notifications", icon: Bell },
+      ],
+    },
+    {
+      label: "Finance",
+      items: sessionRole === "finance"
+        ? [{ href: "/finance", label: "Finance workspace", icon: Banknote }]
+        : [],
+    },
+  ];
+
+  return (
+    <aside className="sticky top-[132px] hidden h-[calc(100vh-156px)] overflow-y-auto rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm lg:block">
+      <div className="rounded-2xl bg-slate-950 p-4 text-white">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">Web Console</p>
+        <p className="mt-2 text-sm leading-5 text-slate-300">Admin, operations, insight, dan kontrol bisnis dalam layout desktop.</p>
+      </div>
+      <nav className="mt-4 space-y-5">
+        {groups.map((group) => group.items.length ? (
+          <div key={group.label}>
+            <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{group.label}</p>
+            <div className="mt-2 grid gap-1">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const active = item.href === "/admin"
+                  ? pathname === "/admin"
+                  : item.href === "/operations"
+                    ? activeApp === "operations" && pathname === "/operations"
+                    : pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    prefetch
+                    className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold transition ${
+                      active ? "bg-emerald-50 text-emerald-800" : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ) : null)}
+      </nav>
+    </aside>
+  );
+}
+
 function AppTopBar({
   activeApp,
+  pathname,
   headerCounts,
 }: {
   activeApp: "storefront" | "admin" | "operations" | "insights" | "finance";
+  pathname: string;
   headerCounts: { cart: number; notifications: number };
 }) {
   if (activeApp === "storefront") {
@@ -373,31 +490,11 @@ function AppTopBar({
   }
 
   if (activeApp === "admin") {
-    return (
-      <div className="flex gap-2 overflow-x-auto rounded-[18px] border border-slate-200 bg-white p-1.5 shadow-sm">
-        <TopAction href="/admin/products" icon={Search} label="Cari SKU" />
-        <TopAction href="/admin/products/new" icon={PackagePlus} label="Tambah produk" dark />
-        <TopAction href="/admin/assets" icon={ImageIcon} label="Upload asset" />
-        <TopAction href="/admin/orders" icon={ShoppingCart} label="Order baru" />
-        <TopAction href="/admin/crm" icon={User} label="CRM" />
-        <TopAction href="/admin/promotions" icon={Bell} label="Promo" />
-        <TopAction href="/admin/inventory" icon={Boxes} label="Inventory" />
-        <TopAction href="/admin/analytics" icon={ChartColumn} label="Analytics" />
-        <TopAction href="/admin/notifications" icon={MessageSquareMore} label="Notif" />
-      </div>
-    );
+    return <ContextualTopActions items={adminTopActions(pathname)} />;
   }
 
   if (activeApp === "operations") {
-    return (
-      <div className="flex gap-2 overflow-x-auto rounded-[18px] border border-slate-200 bg-white p-1.5 shadow-sm">
-        <TopAction href="/operations/picking" icon={ScanLine} label="Scan picklist" dark />
-        <TopAction href="/operations/qc" icon={Settings} label="QC batch" />
-      <TopAction href="/operations/packing" icon={Boxes} label="Print AWB" />
-      <TopAction href="/operations/returns" icon={Truck} label="Retur" />
-      <TopAction href="/admin/inventory" icon={Warehouse} label="WMS stock" />
-      </div>
-    );
+    return <ContextualTopActions items={operationsTopActions(pathname)} />;
   }
 
   if (activeApp === "finance") {
@@ -414,12 +511,145 @@ function AppTopBar({
     );
   }
 
+  return <ContextualTopActions items={insightsTopActions(pathname)} />;
+}
+
+function adminTopActions(pathname: string): TopActionItem[] {
+  if (pathname.startsWith("/admin/products")) {
+    return [
+      { href: "/admin/products", icon: Search, label: "Cari SKU" },
+      { href: "/admin/products/categories", icon: Tags, label: "Kategori" },
+      { href: "/admin/products/new", icon: PackagePlus, label: "Tambah produk", dark: true },
+      { href: "/admin/products/bulk-upload", icon: FileSpreadsheet, label: "Bulk upload" },
+      { href: "/admin/assets", icon: ImageIcon, label: "Media produk" },
+      { href: "/admin/inventory", icon: Boxes, label: "Stok SKU" },
+    ];
+  }
+  if (pathname.startsWith("/admin/orders")) {
+    return [
+      { href: "/admin/orders", icon: ShoppingCart, label: "Daftar order", dark: true },
+      { href: "/operations/picking", icon: ScanLine, label: "Picking" },
+      { href: "/operations/packing", icon: Boxes, label: "Packing" },
+      { href: "/operations/returns", icon: Truck, label: "Retur" },
+      { href: "/admin/notifications", icon: MessageSquareMore, label: "Notif order" },
+    ];
+  }
+  if (pathname.startsWith("/admin/analytics")) {
+    return [
+      { href: "/admin/analytics", icon: ChartColumn, label: "Dashboard data", dark: true },
+      { href: "/insights/reports", icon: FileSpreadsheet, label: "Reports" },
+      { href: "/insights/ai", icon: BrainCircuit, label: "AI forecast" },
+      { href: "/admin/promotions", icon: Bell, label: "ROAS promo" },
+    ];
+  }
+  if (pathname.startsWith("/admin/crm")) {
+    return [
+      { href: "/admin/crm", icon: User, label: "Customer" , dark: true },
+      { href: "/admin/notifications", icon: MessageSquareMore, label: "Ticket CS" },
+      { href: "/admin/promotions", icon: Bell, label: "Voucher" },
+      { href: "/insights/crm", icon: ChartColumn, label: "Segmentasi" },
+    ];
+  }
+  if (pathname.startsWith("/admin/promotions")) {
+    return [
+      { href: "/admin/promotions", icon: Bell, label: "Promo engine", dark: true },
+      { href: "/storefront/profile/vouchers", icon: Tags, label: "Voucher" },
+      { href: "/insights/automation", icon: BrainCircuit, label: "Campaign" },
+    ];
+  }
+  if (pathname.startsWith("/admin/assets")) {
+    return [
+      { href: "/admin/assets", icon: ImageIcon, label: "Asset library", dark: true },
+      { href: "/admin/products/new?tab=media", icon: PackagePlus, label: "Media produk" },
+      { href: "/storefront/live", icon: Video, label: "Preview reel" },
+      { href: "/storefront/recipes", icon: BookOpen, label: "Preview resep" },
+    ];
+  }
+  if (pathname.startsWith("/admin/inventory")) {
+    return [
+      { href: "/admin/inventory", icon: Boxes, label: "Inventory", dark: true },
+      { href: "/operations", icon: Warehouse, label: "Warehouse" },
+      { href: "/operations/procurement", icon: ClipboardCheck, label: "Procurement" },
+      { href: "/operations/qc", icon: Settings, label: "QC" },
+    ];
+  }
+  return [
+    { href: "/admin", icon: LayoutDashboard, label: "Dashboard", dark: true },
+    { href: "/admin/orders", icon: ShoppingCart, label: "Order hari ini" },
+    { href: "/admin/products", icon: Boxes, label: "Produk" },
+    { href: "/admin/crm", icon: User, label: "CRM" },
+    { href: "/admin/analytics", icon: ChartColumn, label: "Analytics" },
+  ];
+}
+
+function operationsTopActions(pathname: string): TopActionItem[] {
+  if (pathname.startsWith("/operations/picking")) {
+    return [
+      { href: "/operations/picking", icon: ScanLine, label: "Picklist", dark: true },
+      { href: "/admin/orders", icon: ShoppingCart, label: "Order paid" },
+      { href: "/admin/inventory", icon: Boxes, label: "Stok reserved" },
+    ];
+  }
+  if (pathname.startsWith("/operations/packing")) {
+    return [
+      { href: "/operations/packing", icon: Boxes, label: "Packing", dark: true },
+      { href: "/operations/qc", icon: Settings, label: "QC" },
+      { href: "/admin/orders", icon: ShoppingCart, label: "Print AWB" },
+      { href: "/storefront/orders/JBD-260609-9007", icon: Truck, label: "Tracking" },
+    ];
+  }
+  if (pathname.startsWith("/operations/returns")) {
+    return [
+      { href: "/operations/returns", icon: Truck, label: "Retur", dark: true },
+      { href: "/admin/orders", icon: ShoppingCart, label: "Order detail" },
+      { href: "/admin/notifications", icon: MessageSquareMore, label: "Ticket CS" },
+    ];
+  }
+  return [
+    { href: "/operations", icon: Warehouse, label: "Queue", dark: true },
+    { href: "/operations/picking", icon: ScanLine, label: "Picking" },
+    { href: "/operations/packing", icon: Boxes, label: "Packing" },
+    { href: "/operations/returns", icon: Truck, label: "Retur" },
+    { href: "/admin/inventory", icon: Warehouse, label: "WMS stock" },
+  ];
+}
+
+function insightsTopActions(pathname: string): TopActionItem[] {
+  if (pathname.startsWith("/insights/crm")) {
+    return [
+      { href: "/insights/crm", icon: User, label: "CRM insight", dark: true },
+      { href: "/admin/crm", icon: MessageSquareMore, label: "Customer data" },
+      { href: "/insights/reports", icon: ChartColumn, label: "Cohort" },
+    ];
+  }
+  if (pathname.startsWith("/insights/automation")) {
+    return [
+      { href: "/insights/automation", icon: Bell, label: "Campaign", dark: true },
+      { href: "/admin/promotions", icon: Tags, label: "Promo rules" },
+      { href: "/admin/notifications", icon: MessageSquareMore, label: "Notif" },
+    ];
+  }
+  if (pathname.startsWith("/insights/reports")) {
+    return [
+      { href: "/insights/reports", icon: ChartColumn, label: "Reports", dark: true },
+      { href: "/admin/analytics", icon: FileSpreadsheet, label: "Analytics" },
+      { href: "/finance", icon: Banknote, label: "Finance" },
+    ];
+  }
+  return [
+    { href: "/insights", icon: BrainCircuit, label: "Insight", dark: true },
+    { href: "/insights/crm", icon: User, label: "CRM" },
+    { href: "/insights/automation", icon: Bell, label: "Campaign" },
+    { href: "/insights/reports", icon: ChartColumn, label: "Dashboard" },
+  ];
+}
+
+function ContextualTopActions({ items }: { items: TopActionItem[] }) {
   return (
     <div className="flex gap-2 overflow-x-auto rounded-[18px] border border-slate-200 bg-white p-1.5 shadow-sm">
-      <TopAction href="/insights/crm" icon={User} label="CRM" />
-      <TopAction href="/insights/automation" icon={Bell} label="Campaign" dark />
-      <TopAction href="/insights/ai" icon={BrainCircuit} label="AI agent" />
-      <TopAction href="/insights/reports" icon={ChartColumn} label="Dashboard" />
+      {items.map((item) => (
+        <TopAction key={`${item.href}-${item.label}`} {...item} />
+      ))}
     </div>
   );
 }

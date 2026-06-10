@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { BookOpen, Image as ImageIcon, Pencil, Play, Plus, Upload, Video } from "lucide-react";
+import { BookOpen, Image as ImageIcon, Pencil, Play, Upload, Video } from "lucide-react";
+import { AdminContentPublisher } from "@/components/admin-content-publisher";
 import { CompactFilterBar } from "@/components/compact-filter-bar";
 import { PrototypeShell } from "@/components/prototype-shell";
-import { getAssets, getRecipes } from "@/lib/mvp-store";
+import { getAssets, getProducts, getRecipes } from "@/lib/mvp-store";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +15,19 @@ const typeIcon = {
   recipe: BookOpen,
 } as const;
 
+function isVideoMedia(value?: string, mimeType?: string) {
+  const media = value?.toLowerCase() ?? "";
+  return Boolean(
+    mimeType?.startsWith("video/") ||
+      media.includes(".mp4") ||
+      media.includes(".webm") ||
+      media.includes(".mov") ||
+      media.includes("video"),
+  );
+}
+
 export default async function AdminAssetsPage() {
-  const [assets, recipes] = await Promise.all([getAssets(), getRecipes()]);
+  const [assets, recipes, products] = await Promise.all([getAssets(), getRecipes(), getProducts()]);
   const library = [
     ...assets.map((asset) => ({
       name: String(asset.title),
@@ -24,6 +36,7 @@ export default async function AdminAssetsPage() {
       status: String(asset.status ?? "published"),
       tone: asset.type === "video" ? "bg-slate-900" : "bg-emerald-100",
       mediaUrl: typeof asset.mediaUrl === "string" ? asset.mediaUrl : "",
+      mimeType: typeof asset.mimeType === "string" ? asset.mimeType : "",
     })),
     ...recipes.map((recipe) => ({
       name: recipe.title,
@@ -32,13 +45,14 @@ export default async function AdminAssetsPage() {
       status: recipe.status ?? "published",
       tone: recipe.tone ?? "bg-amber-100",
       mediaUrl: recipe.mediaUrl ?? "",
+      mimeType: recipe.mimeType ?? "",
     })),
   ];
 
   return (
     <PrototypeShell compact eyebrow="Admin Assets" title="Asset, Banner, Video, dan Resep" description="">
-      <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="font-semibold text-slate-950">Library konten commerce</p>
@@ -57,14 +71,14 @@ export default async function AdminAssetsPage() {
             />
           </div>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <div className="mt-5 grid min-w-0 gap-4 md:grid-cols-2">
             {library.map((asset, index) => {
               const Icon = typeIcon[asset.type as keyof typeof typeIcon] ?? ImageIcon;
               return (
-                <div key={`${asset.name}-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div key={`${asset.name}-${index}`} className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className={`grid aspect-video place-items-center overflow-hidden rounded-2xl ${asset.tone}`}>
-                    {asset.mediaUrl && (asset.type === "video" || asset.type === "product-video") ? (
-                      <video src={asset.mediaUrl} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                    {asset.mediaUrl && isVideoMedia(asset.mediaUrl, asset.mimeType) ? (
+                      <video src={asset.mediaUrl} muted playsInline controls preload="metadata" className="h-full w-full object-cover" />
                     ) : asset.mediaUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={asset.mediaUrl} alt="" className="h-full w-full object-cover" />
@@ -73,9 +87,9 @@ export default async function AdminAssetsPage() {
                     )}
                   </div>
                   <div className="mt-4 flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-slate-950">{asset.name}</p>
-                      <p className="mt-1 text-sm text-slate-500">{asset.type} | {asset.placement}</p>
+                    <div className="min-w-0">
+                      <p className="break-words font-semibold text-slate-950">{asset.name}</p>
+                      <p className="mt-1 break-words text-sm text-slate-500">{asset.type} | {asset.placement}</p>
                     </div>
                     <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700">{asset.status}</span>
                   </div>
@@ -95,71 +109,8 @@ export default async function AdminAssetsPage() {
           </div>
         </div>
 
-        <aside className="space-y-5">
-          <form id="publish-content" action="/api/admin/assets" method="post" encType="multipart/form-data" className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="font-semibold text-slate-950">Publish konten baru</p>
-            <div className="mt-4 grid gap-3">
-              <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Tipe konten
-                <select name="type" defaultValue="recipe" className="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm">
-                  <option value="image">Gambar promosi</option>
-                  <option value="recipe">Resep</option>
-                  <option value="banner">Banner carousel</option>
-                  <option value="video">Live video</option>
-                  <option value="product-video">Video produk</option>
-                </select>
-              </label>
-              <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Judul
-                <input name="title" defaultValue="Resep Chocolate Frappe Baru" className="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm" />
-              </label>
-              <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Keyword
-                <input name="keyword" defaultValue="chocolate frappe cafe" className="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm" />
-              </label>
-              <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Caption / deskripsi
-                <textarea name="caption" rows={4} defaultValue="Inspirasi menu minuman menggunakan powder JBD." className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm" />
-              </label>
-              <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Produk terkait
-                <select name="productSlug" className="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm">
-                  <option value="chocolate-premium-500g">JBD Chocolate Premium 500g</option>
-                  <option value="matcha-latte-1kg">JBD Matcha Latte 1kg</option>
-                  <option value="taro-signature-500g">JBD Taro Signature 500g</option>
-                </select>
-              </label>
-              <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Placement
-                <select name="placement" className="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm">
-                  <option>Resep + Live/Reel</option>
-                  <option>Homepage carousel</option>
-                  <option>Product detail</option>
-                  <option>Voucher campaign</option>
-                </select>
-              </label>
-              <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Status publikasi
-                <select name="status" defaultValue="published" className="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm">
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="scheduled">Scheduled</option>
-                </select>
-              </label>
-              <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Upload gambar atau video
-                <input name="media" type="file" accept="image/*,video/*" className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm" />
-              </label>
-              <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Atau URL media
-                <input name="mediaUrl" type="url" placeholder="https://..." className="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm" />
-              </label>
-            </div>
-            <button type="submit" className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-emerald-700 text-sm font-semibold text-white">
-              <Plus className="h-4 w-4" />
-              Publish
-            </button>
-          </form>
+        <aside className="min-w-0 space-y-5">
+          <AdminContentPublisher products={products.map((product) => ({ slug: product.slug, name: product.name }))} />
 
           <div className="rounded-[28px] border border-slate-200 bg-slate-950 p-5 text-white shadow-sm">
             <p className="font-semibold">Asset rule</p>

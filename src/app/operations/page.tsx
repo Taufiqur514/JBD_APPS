@@ -10,7 +10,7 @@ import {
   Warehouse,
 } from "lucide-react";
 import { PrototypeShell } from "@/components/prototype-shell";
-import { SectionCard } from "@/components/prototype-ui";
+import { FlowHandoff, SectionCard } from "@/components/prototype-ui";
 import {
   operationsMetrics,
   returnsBoard,
@@ -36,6 +36,15 @@ export default async function OperationsPage() {
       title="Warehouse Fulfillment"
       description=""
     >
+      <FlowHandoff
+        steps={[
+          { label: "Order", title: "Paid queue", text: "Order paid dari checkout otomatis menjadi pekerjaan gudang.", href: "/admin/orders", active: true },
+          { label: "WMS", title: "Picking & QC", text: "Tim mengambil stok sesuai varian, batch, dan kuantitas order.", href: "/operations/picking" },
+          { label: "Shipping", title: "Packing & AWB", text: "Paket dipacking, AWB dibuat, dan pickup kurir dicatat.", href: "/operations/packing" },
+          { label: "Customer", title: "Tracking", text: "Status dikirim ke storefront agar customer bisa memantau pesanan.", href: "/storefront/profile/orders" },
+        ]}
+      />
+
       <div className="grid gap-4 md:grid-cols-3">
         {operationsMetrics.map((metric) => (
           <div key={metric.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

@@ -16,8 +16,9 @@ export async function POST(request: Request) {
   const userId = String(formData.get("userId") ?? role);
   const cookieStore = await cookies();
   const sessionToken = await createSessionToken(role, userId);
-  cookieStore.set("jbd_session", sessionToken, { path: "/", sameSite: "lax", httpOnly: true, maxAge: 8 * 60 * 60 });
-  cookieStore.set("jbd_role", role, { path: "/", sameSite: "lax" });
-  cookieStore.set("jbd_user", userId, { path: "/", sameSite: "lax" });
+  const secure = process.env.NODE_ENV === "production";
+  cookieStore.set("jbd_session", sessionToken, { path: "/", sameSite: "lax", httpOnly: true, secure, maxAge: 8 * 60 * 60 });
+  cookieStore.set("jbd_role", role, { path: "/", sameSite: "lax", httpOnly: true, secure, maxAge: 8 * 60 * 60 });
+  cookieStore.set("jbd_user", userId, { path: "/", sameSite: "lax", httpOnly: true, secure, maxAge: 8 * 60 * 60 });
   return redirectResponse(roleHome[role] ?? "/storefront", request);
 }

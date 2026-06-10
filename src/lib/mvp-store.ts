@@ -4,9 +4,22 @@ import { listContentAssets, listProductionRecipes } from "./content-store";
 import { getDb, demoUserId } from "./db";
 import { featuredProducts, productCategories } from "./prototype-data";
 import {
+  addProductionCartLine,
+  advanceProductionOrder,
+  createProductionOrder,
+  getProductionOrder,
+  getProductionOrderSummary,
+  listProductionAddresses,
+  listProductionCartLines,
+  listProductionOrders,
+} from "./production-commerce";
+import {
+  listProductionCategories,
   listProductionInventory,
   listProductionProducts,
   listProductionWarehouseStocks,
+  deleteProductionCategory,
+  upsertProductionCategory,
 } from "./product-store";
 import { isSupabaseConfigured } from "./supabase-server";
 
@@ -14,6 +27,9 @@ export type DbProduct = (typeof featuredProducts)[number] & {
   sku: string;
   active: boolean;
   updatedAt: string;
+  coverUrl?: string;
+  images?: Array<{ url: string; alt?: string; sortOrder?: number; isCover?: boolean; mediaType?: "image" | "video" }>;
+  variantDetails?: Array<{ name: string; price: number; sku?: string; weightGrams?: number; active?: boolean }>;
 };
 
 export type DbOrder = {
@@ -24,6 +40,10 @@ export type DbOrder = {
   addressId: string;
   paymentStatus: "pending" | "paid";
   shipmentStatus: "pending" | "reserved" | "picking" | "packed" | "shipped" | "delivered";
+  courier?: string;
+  service?: string;
+  awb?: string;
+  trackingEvents?: Array<{ status: string; at: string; note?: string }>;
   total: number;
   createdAt: string;
   updatedAt: string;
@@ -35,6 +55,7 @@ export type DbRecipe = {
   productSlug: string;
   product?: string;
   mediaUrl?: string;
+  mimeType?: string;
   time?: string;
   margin?: string;
   tone?: string;
@@ -336,6 +357,66 @@ export async function getProduct(slug: string) {
   return products.find((product) => product.slug === slug) ?? products[0];
 }
 
+export async function getProductCategoryRows() {
+  return cachedRead("categories:rows", async () => {
+    if (isSupabaseConfigured()) return listProductionCategories();
+    await ensureSeed();
+    const db = await getDb();
+    const rows = await db.collection<{ _id?: unknown; name: string; sort?: number; active?: boolean }>("categories")
+      .find({ active: { $ne: false } })
+      .sort({ sort: 1, name: 1 })
+      .toArray();
+    return rows.map((row, index) => ({
+      id: String(row._id ?? row.name),
+      slug: row.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
+      name: row.name,
+      sortOrder: Number(row.sort ?? index),
+      productCount: 0,
+    }));
+  });
+}
+
+export async function getProductCategories() {
+  const rows = await getProductCategoryRows();
+  return rows.map((row) => row.name);
+}
+
+export async function renameProductCategory(categoryId: string, name: string) {
+  if (isSupabaseConfigured()) {
+    await upsertProductionCategory(categoryId, name);
+    invalidateMvpCache();
+    return;
+  }
+  await ensureSeed();
+  const db = await getDb();
+  await db.collection("categories").updateOne({ name: categoryId }, { $set: { name } });
+  invalidateMvpCache();
+}
+
+export async function createProductCategory(name: string) {
+  if (isSupabaseConfigured()) {
+    await upsertProductionCategory(undefined, name);
+    invalidateMvpCache();
+    return;
+  }
+  await ensureSeed();
+  const db = await getDb();
+  await db.collection("categories").updateOne({ name }, { $set: { name, active: true } }, { upsert: true });
+  invalidateMvpCache();
+}
+
+export async function removeProductCategory(categoryId: string) {
+  if (isSupabaseConfigured()) {
+    await deleteProductionCategory(categoryId);
+    invalidateMvpCache();
+    return;
+  }
+  await ensureSeed();
+  const db = await getDb();
+  await db.collection("categories").updateOne({ name: categoryId }, { $set: { active: false } });
+  invalidateMvpCache();
+}
+
 export async function getInventory() {
   return cachedRead("inventory:all", async () => {
     if (isSupabaseConfigured()) return listProductionInventory();
@@ -347,6 +428,7 @@ export async function getInventory() {
 
 export async function getAddresses() {
   return cachedRead(`addresses:${demoUserId}`, async () => {
+    if (isSupabaseConfigured()) return listProductionAddresses();
     await ensureSeed();
     const db = await getDb();
     return db.collection("addresses").find({ userId: demoUserId }).toArray();
@@ -355,6 +437,22 @@ export async function getAddresses() {
 
 export async function getCartLines() {
   return cachedRead(`cartLines:${demoUserId}`, async () => {
+    if (isSupabaseConfigured()) {
+      const [rawLines, products] = await Promise.all([listProductionCartLines(), getProducts()]);
+      return rawLines.map((line) => {
+        const product = products.find((entry) => entry.slug === line.product_slug) ?? products[0];
+        const unitPrice = Number(line.variant_price ?? line.product_price);
+        return {
+          productSlug: line.product_slug,
+          qty: line.quantity,
+          variant: line.variant_name ?? "Default",
+          note: line.note ?? "Ditambahkan dari storefront",
+          product,
+          unitPrice,
+          lineTotal: unitPrice * line.quantity,
+        };
+      });
+    }
     await ensureSeed();
     const db = await getDb();
     const cart = await db.collection("carts").findOne({ userId: demoUserId, status: "active" });
@@ -362,13 +460,16 @@ export async function getCartLines() {
     const items = (cart?.items ?? []) as Array<{ productSlug: string; qty: number; variant: string; note: string }>;
     return items.map((item) => {
       const product = products.find((entry) => entry.slug === item.productSlug) ?? products[0];
-      return { ...item, product, lineTotal: product.numericPrice * item.qty };
+      const variantDetail = product.variantDetails?.find((variant) => variant.name === item.variant);
+      const unitPrice = Number(variantDetail?.price ?? product.numericPrice);
+      return { ...item, product, unitPrice, lineTotal: unitPrice * item.qty };
     });
   }, FAST_READ_CACHE_MS);
 }
 
 export async function getOrderSummaryFromCart() {
   return cachedRead(`orderSummary:${demoUserId}`, async () => {
+    if (isSupabaseConfigured()) return getProductionOrderSummary();
     const lines = await getCartLines();
     const db = await getDb();
     const [promoRules, vouchers] = await Promise.all([
@@ -406,6 +507,7 @@ export async function getOrderSummaryFromCart() {
 
 export async function getOrders() {
   return cachedRead("orders:all", async () => {
+    if (isSupabaseConfigured()) return listProductionOrders();
     await ensureSeed();
     const db = await getDb();
     return db.collection<DbOrder>("orders").find({}).sort({ createdAt: -1 }).toArray();
@@ -423,6 +525,7 @@ export async function getRecipes() {
           productSlug: recipe.productSlug ?? "chocolate-premium-500g",
           product: recipe.description,
           mediaUrl: recipe.mediaUrl,
+          mimeType: recipe.mimeType,
           time: `${recipe.preparationMinutes} menit`,
           margin: "Production content",
           tone: "bg-emerald-100",
@@ -559,15 +662,22 @@ export async function trackEvent(type: string, actorId = demoUserId, channel = "
 }
 
 export async function getOrder(id: string) {
+  if (isSupabaseConfigured()) return getProductionOrder(id);
   const orders = await getOrders();
   return orders.find((order) => order.id === id) ?? orders[0];
 }
 
 export async function addToCartAction(formData: FormData) {
   "use server";
-  await ensureSeed();
   const slug = String(formData.get("slug") ?? "chocolate-premium-500g");
   const variant = String(formData.get("variant") ?? "500g");
+  if (isSupabaseConfigured()) {
+    await addProductionCartLine(slug, variant, 1);
+    invalidateMvpCache();
+    revalidatePath("/storefront/cart");
+    redirect("/storefront/cart");
+  }
+  await ensureSeed();
   const db = await getDb();
   const existing = await db.collection("carts").findOne({ userId: demoUserId, status: "active" });
   if (!existing) {
@@ -578,10 +688,10 @@ export async function addToCartAction(formData: FormData) {
       updatedAt: new Date().toISOString(),
     });
   } else {
-    const item = (existing.items as Array<{ productSlug: string; qty: number }>).find((entry) => entry.productSlug === slug);
+    const item = (existing.items as Array<{ productSlug: string; qty: number; variant: string }>).find((entry) => entry.productSlug === slug && entry.variant === variant);
     if (item) {
       await db.collection("carts").updateOne(
-        { _id: existing._id, "items.productSlug": slug },
+        { _id: existing._id, "items.productSlug": slug, "items.variant": variant },
         { $inc: { "items.$.qty": 1 }, $set: { updatedAt: new Date().toISOString() } },
       );
     } else {
@@ -598,6 +708,11 @@ export async function addToCartAction(formData: FormData) {
 
 export async function createOrderAction() {
   "use server";
+  if (isSupabaseConfigured()) {
+    const id = await createProductionOrder();
+    invalidateMvpCache();
+    redirect(`/storefront/payment?order=${id}`);
+  }
   await ensureSeed();
   const db = await getDb();
   const lines = await getCartLines();
@@ -654,6 +769,11 @@ export async function operationStatusAction(formData: FormData) {
 }
 
 export async function advanceOrder(id: string, status: DbOrder["status"]) {
+  if (isSupabaseConfigured()) {
+    await advanceProductionOrder(id, status);
+    invalidateMvpCache();
+    return;
+  }
   await ensureSeed();
   const db = await getDb();
   const shipmentStatus =

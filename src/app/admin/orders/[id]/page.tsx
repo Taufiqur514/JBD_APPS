@@ -4,6 +4,7 @@ import {
   Check,
   ClipboardCheck,
   CreditCard,
+  Package,
   PackageCheck,
   Printer,
   Truck,
@@ -48,6 +49,7 @@ export default async function AdminOrderDetailPage({
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <form action="/api/orders/process" method="post">
                 <input type="hidden" name="orderId" value={order?.id ?? ""} />
+                <input type="hidden" name="back" value={`/admin/orders/${order?.id ?? id}`} />
                 <input type="hidden" name="status" value="picking" />
                 <button type="submit" className="h-11 w-full rounded-full bg-slate-950 px-4 text-sm font-semibold text-white">
                   Generate picklist
@@ -55,6 +57,7 @@ export default async function AdminOrderDetailPage({
               </form>
               <form action="/api/orders/process" method="post">
                 <input type="hidden" name="orderId" value={order?.id ?? ""} />
+                <input type="hidden" name="back" value={`/admin/orders/${order?.id ?? id}`} />
                 <input type="hidden" name="status" value="packing" />
                 <button type="submit" className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700">
                 <Printer className="h-4 w-4" />
@@ -63,12 +66,30 @@ export default async function AdminOrderDetailPage({
               </form>
               <form action="/api/orders/process" method="post">
                 <input type="hidden" name="orderId" value={order?.id ?? ""} />
+                <input type="hidden" name="back" value={`/admin/orders/${order?.id ?? id}`} />
                 <input type="hidden" name="status" value="shipped" />
                 <button type="submit" className="h-11 w-full rounded-full border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700">
                   Mark ready to ship
                 </button>
               </form>
             </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {order?.items.map((item) => (
+              <div key={`${item.productSlug}-${item.variant}`} className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="flex items-start gap-3">
+                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+                    <Package className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-950">{item.name}</p>
+                    <p className="mt-1 text-sm text-slate-500">Varian {item.variant} | Qty {item.qty}</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-900">{formatRupiah(item.price * item.qty)}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="mt-6 space-y-4">
@@ -95,6 +116,17 @@ export default async function AdminOrderDetailPage({
             <p className="mt-4 text-sm text-slate-500">Total</p>
             <p className="text-2xl font-semibold text-slate-950">{formatRupiah(order?.total ?? 0)}</p>
           </div>
+          <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-sm text-slate-500">Payment</p>
+            <p className="mt-1 text-lg font-semibold capitalize text-slate-950">{order?.paymentStatus ?? "pending"}</p>
+            <p className="mt-4 text-sm text-slate-500">Shipment</p>
+            <p className="font-semibold capitalize text-slate-900">{order?.shipmentStatus ?? "pending"}</p>
+            <p className="mt-4 text-sm text-slate-500">Courier / AWB</p>
+            <p className="font-medium text-slate-900">
+              {[order?.courier, order?.service].filter(Boolean).join(" ") || "Belum diproses"}
+            </p>
+            <p className="mt-1 text-sm font-semibold text-emerald-700">{order?.awb ?? "AWB dibuat saat packing"}</p>
+          </div>
           <div className="rounded-[28px] border border-slate-200 bg-slate-950 p-5 text-white shadow-sm">
             <p className="text-sm text-emerald-300">Warehouse</p>
             <p className="mt-1 text-xl font-semibold">Bekasi Main WH</p>
@@ -102,6 +134,20 @@ export default async function AdminOrderDetailPage({
               Stock reserved. Picking can be generated for Chocolate Premium and Matcha Latte.
             </p>
           </div>
+          {order?.trackingEvents?.length ? (
+            <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="font-semibold text-slate-950">Tracking log</p>
+              <div className="mt-4 space-y-3">
+                {order.trackingEvents.slice().reverse().map((event, index) => (
+                  <div key={`${event.status}-${event.at}-${index}`} className="rounded-2xl bg-slate-50 p-3">
+                    <p className="text-sm font-semibold capitalize text-slate-950">{event.status.replaceAll("_", " ")}</p>
+                    <p className="mt-1 text-xs text-slate-500">{new Date(event.at).toLocaleString("id-ID")}</p>
+                    {event.note ? <p className="mt-1 text-sm text-slate-600">{event.note}</p> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </aside>
       </section>
     </PrototypeShell>

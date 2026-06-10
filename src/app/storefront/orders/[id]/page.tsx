@@ -55,8 +55,26 @@ export default async function OrderTrackingPage({
               <p className="font-semibold text-slate-950">JNE Reguler</p>
             </div>
             <p className="mt-4 text-sm text-slate-500">Resi</p>
-            <p className="text-lg font-semibold text-slate-950">JNE-8872-240605</p>
+            <p className="text-lg font-semibold text-slate-950">{order?.awb ?? "Menunggu AWB"}</p>
+            <p className="mt-2 text-sm text-slate-500">
+              {[order?.courier, order?.service].filter(Boolean).join(" ") || "Kurir akan tampil setelah packing"}
+            </p>
           </div>
+
+          {order?.trackingEvents?.length ? (
+            <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="font-semibold text-slate-950">Update terakhir</p>
+              <div className="mt-4 space-y-3">
+                {order.trackingEvents.slice().reverse().slice(0, 4).map((event, index) => (
+                  <div key={`${event.status}-${event.at}-${index}`} className="rounded-2xl bg-slate-50 p-3">
+                    <p className="text-sm font-semibold capitalize text-slate-950">{event.status.replaceAll("_", " ")}</p>
+                    <p className="mt-1 text-xs text-slate-500">{new Date(event.at).toLocaleString("id-ID")}</p>
+                    {event.note ? <p className="mt-1 text-sm text-slate-600">{event.note}</p> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center gap-3">

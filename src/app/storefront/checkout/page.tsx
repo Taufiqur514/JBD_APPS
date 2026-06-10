@@ -2,6 +2,7 @@ import { MapPin, ShieldCheck, Ticket, Truck } from "lucide-react";
 import { PrototypeShell } from "@/components/prototype-shell";
 import { formatRupiah } from "@/lib/commerce";
 import { getAddresses, getCartLines, getOrderSummaryFromCart } from "@/lib/mvp-store";
+import { quoteShipping } from "@/lib/shipping-provider";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,9 @@ export default async function CheckoutPage() {
   const summary = await getOrderSummaryFromCart();
   const addresses = await getAddresses();
   const address = addresses.find((item) => item.primary) ?? addresses[0];
+  const totalWeight = Math.max(1000, lines.reduce((sum, line) => sum + line.qty * 1000, 0));
+  const destinationCity = String(address?.address ?? "").toLowerCase().includes("bekasi") ? "Bekasi" : "Jakarta";
+  const shippingQuotes = quoteShipping(destinationCity, totalWeight);
 
   return (
     <PrototypeShell compact eyebrow="Checkout" title="Alamat, Kurir, Voucher" description="">
@@ -26,17 +30,23 @@ export default async function CheckoutPage() {
 
           <CheckoutBlock icon={Truck} title="Pilih kurir">
             <div className="grid gap-3 md:grid-cols-3">
-              {["JNE Reguler", "SiCepat BEST", "Anteraja Cargo"].map((courier, index) => (
+              {shippingQuotes.map((quote, index) => (
                 <label
-                  key={courier}
+                  key={`${quote.courier}-${quote.service}`}
                   className="cursor-pointer"
                 >
-                  <input className="peer sr-only" type="radio" name="courier" value={courier} defaultChecked={index === 0} />
+                  <input
+                    className="peer sr-only"
+                    type="radio"
+                    name="courier"
+                    value={`${quote.courier} ${quote.service}`}
+                    defaultChecked={index === 0}
+                  />
                   <span className="block rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left peer-checked:border-emerald-300 peer-checked:bg-emerald-50">
-                  <p className="font-semibold text-slate-950">{courier}</p>
-                  <p className="mt-1 text-sm text-slate-500">{index + 1}-{index + 3} hari</p>
+                  <p className="font-semibold text-slate-950">{quote.courier} {quote.service}</p>
+                  <p className="mt-1 text-sm text-slate-500">{quote.etd}</p>
                   <p className="mt-2 text-sm font-medium text-slate-900">
-                    {formatRupiah(index === 0 ? 18000 : index === 1 ? 26000 : 42000)}
+                    {formatRupiah(quote.cost)}
                   </p>
                   </span>
                 </label>
@@ -68,7 +78,7 @@ export default async function CheckoutPage() {
           <p className="font-semibold text-slate-950">Order summary</p>
           <div className="mt-4 space-y-3">
             {lines.map((line) => (
-              <div key={line.product.slug} className="flex justify-between gap-4 text-sm">
+              <div key={`${line.product.slug}-${line.variant}`} className="flex justify-between gap-4 text-sm">
                 <span className="text-slate-600">{line.product.name} x{line.qty}</span>
                 <span className="font-medium text-slate-900">{formatRupiah(line.lineTotal)}</span>
               </div>

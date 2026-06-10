@@ -2,10 +2,20 @@ import Link from "next/link";
 import { BookOpen, Clock3, Search, Sparkles, Star } from "lucide-react";
 import { CompactFilterBar } from "@/components/compact-filter-bar";
 import { PrototypeShell } from "@/components/prototype-shell";
-import { productCategories } from "@/lib/prototype-data";
-import { getRecipes } from "@/lib/mvp-store";
+import { getProducts, getRecipes } from "@/lib/mvp-store";
 
 export const dynamic = "force-dynamic";
+
+function isVideoMedia(value?: string, mimeType?: string) {
+  const media = value?.toLowerCase() ?? "";
+  return Boolean(
+    mimeType?.startsWith("video/") ||
+      media.includes(".mp4") ||
+      media.includes(".webm") ||
+      media.includes(".mov") ||
+      media.includes("video"),
+  );
+}
 
 export default async function StorefrontRecipesPage({
   searchParams,
@@ -13,6 +23,8 @@ export default async function StorefrontRecipesPage({
   searchParams: Promise<{ q?: string; category?: string; sort?: string; filter?: string }>;
 }) {
   const params = await searchParams;
+  const products = await getProducts();
+  const productCategories = Array.from(new Set(products.map((product) => product.category).filter(Boolean)));
   const query = String(params.q ?? "").toLowerCase();
   const recipes = (await getRecipes()).filter((recipe) =>
     query ? [recipe.title, recipe.keyword, recipe.product].join(" ").toLowerCase().includes(query) : true,
@@ -35,8 +47,15 @@ export default async function StorefrontRecipesPage({
                 href={`/storefront/products/${recipe.productSlug}`}
                 className="grid min-w-0 grid-cols-[96px_1fr] gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 transition hover:border-emerald-300 hover:bg-white sm:grid-cols-1 md:p-4"
               >
-                <div className={`grid aspect-square place-items-center rounded-2xl sm:aspect-[4/3] ${recipe.tone ?? "bg-amber-200"}`}>
-                  <BookOpen className="h-7 w-7 text-slate-700" />
+                <div className={`grid aspect-square place-items-center overflow-hidden rounded-2xl sm:aspect-[4/3] ${recipe.tone ?? "bg-amber-200"}`}>
+                  {recipe.mediaUrl && isVideoMedia(recipe.mediaUrl, recipe.mimeType) ? (
+                    <video src={recipe.mediaUrl} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                  ) : recipe.mediaUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={recipe.mediaUrl} alt={recipe.title} className="h-full w-full object-cover" />
+                  ) : (
+                    <BookOpen className="h-7 w-7 text-slate-700" />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-slate-950 md:text-base">{recipe.title}</p>

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Star } from "lucide-react";
 import { CompactFilterBar } from "@/components/compact-filter-bar";
 import { PrototypeShell } from "@/components/prototype-shell";
-import { productCategories } from "@/lib/prototype-data";
 import { getProducts } from "@/lib/mvp-store";
 
 export const dynamic = "force-dynamic";
@@ -18,12 +17,13 @@ export default async function StorefrontSearchPage({
   const sort = params.sort;
   const filter = params.filter;
   let products = await getProducts();
+  const productCategories = Array.from(new Set(products.map((product) => product.category).filter(Boolean)));
   if (query) {
     products = products.filter((product) =>
       [product.name, product.taste, product.category, product.description].join(" ").toLowerCase().includes(query),
     );
   }
-  if (category && category !== "Semua resep") {
+  if (category && !["Semua kategori", "Semua resep"].includes(category)) {
     products = products.filter((product) => product.category === category);
   }
   if (filter === "Ready stock") products = products.filter((product) => product.stock > 0);
@@ -33,16 +33,17 @@ export default async function StorefrontSearchPage({
 
   return (
     <PrototypeShell compact eyebrow="Search Product" title="Cari Produk JBD" description="">
-      <section>
+      <section id="product-list" className="scroll-mt-40">
         <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
           <CompactFilterBar
-            categories={productCategories}
+            categories={["Semua kategori", ...productCategories]}
             currentParams={{
               q: params.q,
               category,
               sort,
               filter,
             }}
+            targetId="product-list"
           />
           <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
             {query ? <span className="rounded-full bg-slate-50 px-3 py-1">Keyword: {params.q}</span> : null}
@@ -58,7 +59,12 @@ export default async function StorefrontSearchPage({
                 href={`/storefront/products/${product.slug}`}
                 className="rounded-2xl border border-slate-200 bg-slate-50 p-3 transition hover:border-emerald-300 hover:bg-white md:p-4"
               >
-                <div className={`aspect-[4/3] rounded-2xl ${product.imageTone}`} />
+                {product.coverUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={product.coverUrl} alt={product.name} className="aspect-[4/3] w-full rounded-2xl object-cover" />
+                ) : (
+                  <div className={`aspect-[4/3] rounded-2xl ${product.imageTone}`} />
+                )}
                 <p className="mt-3 text-sm font-semibold text-slate-950 md:mt-4 md:text-base">{product.name}</p>
                 <p className="mt-1 text-sm text-slate-500">{product.taste}</p>
                 <div className="mt-4 flex items-center justify-between">
