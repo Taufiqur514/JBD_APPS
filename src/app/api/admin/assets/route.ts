@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { verifySessionToken } from "@/lib/auth";
 import { invalidateMvpCache } from "@/lib/mvp-store";
 import {
@@ -45,6 +46,17 @@ function linesToJson(value: string) {
   return JSON.stringify(value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean));
 }
 
+type ExistingAssetRow = {
+  id: string;
+  slug: string;
+  storage_bucket: string | null;
+  storage_path: string | null;
+  media_url: string | null;
+  mime_type: string | null;
+  file_size: string | null;
+  published_at: Date | null;
+};
+
 export async function POST(request: Request) {
   const cookieStore = await cookies();
   const session = await verifySessionToken(cookieStore.get("jbd_session")?.value);
@@ -55,6 +67,8 @@ export async function POST(request: Request) {
   const formData = await request.formData();
   const requestedType = String(formData.get("type") ?? "recipe");
   const requestedStatus = String(formData.get("status") ?? "draft");
+  const assetId = String(formData.get("assetId") ?? "").trim();
+  const assetSlug = String(formData.get("assetSlug") ?? "").trim();
   const type = allowedTypes.has(requestedType) ? requestedType : "recipe";
   const status = allowedStatuses.has(requestedStatus) ? requestedStatus : "draft";
   const title = String(formData.get("title") ?? "").trim();
@@ -67,6 +81,9 @@ export async function POST(request: Request) {
   const preparationMinutes = Math.max(1, Math.min(120, Number(formData.get("preparationMinutes") ?? 3) || 3));
   const uploadedMedia = formData.get("media");
   const externalMediaUrl = String(formData.get("mediaUrl") ?? "").trim();
+  const assetUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(assetId)
+    ? assetId
+    : null;
 
   if (!title) return new Response("Judul konten wajib diisi.", { status: 400 });
   if (type === "product-video" && !productSlug) {
@@ -82,12 +99,26 @@ export async function POST(request: Request) {
     placement = "Live/Reel";
   }
 
-  const contentSlug = `${slugify(title)}-${Date.now()}`;
+  const databaseType = type === "product-video" ? "product_video" : type;
+  const existingAsset = assetUuid || assetSlug
+    ? (
+        await queryPostgres<ExistingAssetRow>(
+          `select id, slug, storage_bucket, storage_path, media_url, mime_type, file_size, published_at
+           from public.content_assets
+           where type = $1::public.content_type
+             and (($2::uuid is not null and id = $2::uuid) or ($3::text <> '' and slug = $3::text))
+           limit 1`,
+          [databaseType, assetUuid, assetSlug],
+        )
+      ).rows[0]
+    : undefined;
+  const contentSlug = existingAsset?.slug ?? `${slugify(title)}-${Date.now()}`;
   const storageBucket = "commerce-media";
-  let storagePath: string | undefined;
+  let storagePath: string | undefined = existingAsset?.storage_path ?? undefined;
   let mediaUrl = externalMediaUrl || undefined;
-  let mimeType: string | undefined;
-  let fileSize: number | undefined;
+  let mimeType: string | undefined = externalMediaUrl ? undefined : existingAsset?.mime_type ?? undefined;
+  let fileSize: number | undefined = externalMediaUrl ? undefined : existingAsset?.file_size ? Number(existingAsset.file_size) : undefined;
+  if (!mediaUrl && existingAsset?.media_url) mediaUrl = existingAsset.media_url;
 
   if (uploadedMedia instanceof File && uploadedMedia.size > 0) {
     if (!allowedContentTypes.has(uploadedMedia.type)) {
@@ -121,42 +152,62 @@ export async function POST(request: Request) {
     mediaUrl = getPublicStorageUrl(storagePath, storageBucket);
   }
 
-  const databaseType = type === "product-video" ? "product_video" : type;
-  const publishedAt = status === "published" ? new Date().toISOString() : null;
+  const publishedAt = status === "published" ? (existingAsset?.published_at?.toISOString() ?? new Date().toISOString()) : null;
   const keywords = keywordList(keyword);
 
   try {
-    const inserted = await queryPostgres<{ id: string }>(
-      `insert into public.content_assets (
-        title, slug, type, status, placement, product_id, product_slug,
-        storage_bucket, storage_path, media_url, mime_type, file_size,
-        caption, keywords, published_at
-      )
-      values (
-        $1, $2, $3::public.content_type, $4::public.publish_status, $5,
-        (select id from public.products where slug = $6 limit 1), $6,
-        $7, $8, $9, $10, $11, $12, $13::text[], $14
-      )
-      returning id`,
-      [
-        title,
-        contentSlug,
-        databaseType,
-        status,
-        placement,
-        productSlug || null,
-        storageBucket,
-        storagePath ?? null,
-        mediaUrl ?? null,
-        mimeType ?? null,
-        fileSize ?? null,
-        caption,
-        keywords,
-        publishedAt,
-      ],
-    );
+    const values = [
+      title,
+      contentSlug,
+      databaseType,
+      status,
+      placement,
+      productSlug || null,
+      existingAsset?.storage_bucket ?? storageBucket,
+      storagePath ?? null,
+      mediaUrl ?? null,
+      mimeType ?? null,
+      fileSize ?? null,
+      caption,
+      keywords,
+      publishedAt,
+    ];
+    const saved = existingAsset
+      ? await queryPostgres<{ id: string }>(
+          `update public.content_assets set
+            title = $1,
+            status = $4::public.publish_status,
+            placement = $5,
+            product_id = (select id from public.products where slug = $6 limit 1),
+            product_slug = $6,
+            storage_bucket = $7,
+            storage_path = $8,
+            media_url = $9,
+            mime_type = $10,
+            file_size = $11,
+            caption = $12,
+            keywords = $13::text[],
+            published_at = $14
+           where id = $15
+           returning id`,
+          [...values, existingAsset.id],
+        )
+      : await queryPostgres<{ id: string }>(
+          `insert into public.content_assets (
+            title, slug, type, status, placement, product_id, product_slug,
+            storage_bucket, storage_path, media_url, mime_type, file_size,
+            caption, keywords, published_at
+          )
+          values (
+            $1, $2, $3::public.content_type, $4::public.publish_status, $5,
+            (select id from public.products where slug = $6 limit 1), $6,
+            $7, $8, $9, $10, $11, $12, $13::text[], $14
+          )
+          returning id`,
+          values,
+        );
 
-    if (type === "recipe") {
+    if (type === "recipe" && !existingAsset) {
       await queryPostgres(
         `insert into public.recipes (
           title, slug, product_id, product_slug, content_asset_id,
@@ -169,7 +220,7 @@ export async function POST(request: Request) {
           $5, $6::jsonb, $7::jsonb, $8, $9::text[],
           $10::public.publish_status, $11
         )`,
-        [title, contentSlug, productSlug || null, inserted.rows[0].id, caption, ingredients, steps, preparationMinutes, keywords, status, publishedAt],
+        [title, contentSlug, productSlug || null, saved.rows[0].id, caption, ingredients, steps, preparationMinutes, keywords, status, publishedAt],
       );
     }
   } catch (error) {
@@ -181,5 +232,10 @@ export async function POST(request: Request) {
   }
 
   invalidateMvpCache();
-  return redirectResponse(type === "banner" ? "/admin/assets/banners?published=1" : "/admin/assets/content?published=1", request);
+  revalidatePath("/admin/assets");
+  revalidatePath("/admin/assets/banners");
+  revalidatePath("/admin/assets/content");
+  revalidatePath("/storefront");
+  revalidatePath("/storefront/live");
+  return redirectResponse(type === "banner" ? "/admin/assets?published=1&type=banner" : "/admin/assets?published=1&type=content", request);
 }

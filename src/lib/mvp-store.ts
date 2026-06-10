@@ -547,6 +547,7 @@ export async function getAssets() {
       const assets = await listContentAssets();
       return assets.filter((asset) => asset.type !== "recipe").map((asset) => ({
         id: asset.id,
+        slug: asset.slug,
         type: asset.type === "product_video" ? "product-video" : asset.type,
         title: asset.title,
         placement: asset.placement,

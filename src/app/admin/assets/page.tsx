@@ -31,6 +31,8 @@ export default async function AdminAssetsPage() {
   const library = [
     ...manualAssets.map((asset) => ({
       name: String(asset.title),
+      id: String(asset.id ?? ""),
+      slug: String(asset.slug ?? ""),
       type: String(asset.type),
       placement: String(asset.placement ?? "Live/Reel"),
       status: String(asset.status ?? "published"),
@@ -40,6 +42,8 @@ export default async function AdminAssetsPage() {
     })),
     ...recipes.map((recipe) => ({
       name: recipe.title,
+      id: "",
+      slug: String(recipe.productSlug ?? ""),
       type: "recipe",
       placement: "Resep + Live/Reel",
       status: recipe.status ?? "published",
@@ -112,7 +116,7 @@ export default async function AdminAssetsPage() {
                     <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700">{asset.status}</span>
                   </div>
                   <div className="mt-4 flex gap-2">
-                    <Link href={asset.type === "banner" ? "/admin/assets/banners" : "/admin/assets/content"} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-full bg-white text-sm font-semibold text-slate-700">
+                    <Link href={asset.type === "banner" ? `/admin/assets/banners?asset=${encodeURIComponent(asset.slug || asset.id)}` : `/admin/assets/content?asset=${encodeURIComponent(asset.slug || asset.id)}`} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-full bg-white text-sm font-semibold text-slate-700">
                       <Pencil className="h-4 w-4" />
                       Edit
                     </Link>

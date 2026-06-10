@@ -19,7 +19,7 @@ export default async function StorefrontPage({
   const [allProducts, assets] = await Promise.all([getProducts(), getAssets()]);
   let products = [...allProducts];
   const bannerSlides = assets
-    .filter((asset) => asset.type === "banner" && asset.status !== "draft")
+    .filter((asset) => asset.type === "banner" && asset.status === "published" && typeof asset.mediaUrl === "string" && asset.mediaUrl)
     .map((asset) => ({
       eyebrow: "Banner carousel JBD",
       title: String(asset.title),

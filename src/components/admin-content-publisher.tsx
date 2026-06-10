@@ -9,6 +9,20 @@ type Preview = {
   mediaType: "image" | "video";
 };
 
+type InitialAsset = {
+  id?: string;
+  slug?: string;
+  type?: string;
+  title?: string;
+  keyword?: string;
+  caption?: string;
+  productSlug?: string;
+  placement?: string;
+  status?: string;
+  mediaUrl?: string;
+  mimeType?: string;
+};
+
 const contentTypes = [
   { value: "recipe", label: "Resep", helper: "Muncul di halaman Resep dan Live/Reel." },
   { value: "video", label: "Live video", helper: "Muncul full screen di Live/Reel." },
@@ -26,15 +40,27 @@ function mediaTypeFromFile(file: File): Preview["mediaType"] {
 export function AdminContentPublisher({
   products,
   mode = "content",
+  initialAsset,
 }: {
   products: { slug: string; name: string }[];
   mode?: "content" | "banner";
+  initialAsset?: InitialAsset;
 }) {
   const availableTypes = mode === "banner" ? bannerTypes : contentTypes;
-  const [type, setType] = useState(availableTypes[0].value);
-  const [preview, setPreview] = useState<Preview | null>(null);
+  const initialType = availableTypes.some((item) => item.value === initialAsset?.type) ? String(initialAsset?.type) : availableTypes[0].value;
+  const [type, setType] = useState(initialType);
+  const [preview, setPreview] = useState<Preview | null>(
+    initialAsset?.mediaUrl
+      ? {
+          name: "Media tersimpan",
+          url: initialAsset.mediaUrl,
+          mediaType: String(initialAsset.mimeType ?? "").startsWith("video/") ? "video" : "image",
+        }
+      : null,
+  );
   const activeType = availableTypes.find((item) => item.value === type) ?? availableTypes[0];
   const isBannerMode = mode === "banner";
+  const isEditing = Boolean(initialAsset?.id || initialAsset?.slug);
 
   useEffect(() => {
     return () => {
@@ -57,9 +83,13 @@ export function AdminContentPublisher({
 
   return (
     <form id="publish-content" action="/api/admin/assets" method="post" encType="multipart/form-data" className="min-w-0 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="font-semibold text-slate-950">{isBannerMode ? "Tambah banner carousel" : "Publish konten baru"}</p>
+      <input type="hidden" name="assetId" value={initialAsset?.id ?? ""} />
+      <input type="hidden" name="assetSlug" value={initialAsset?.slug ?? ""} />
+      <p className="font-semibold text-slate-950">{isEditing ? "Edit asset" : isBannerMode ? "Tambah banner carousel" : "Publish konten baru"}</p>
       <p className="mt-1 text-sm leading-6 text-slate-500">
-        {isBannerMode
+        {isEditing
+          ? "Perubahan judul, placement, status, dan media akan memperbarui record yang sama."
+          : isBannerMode
           ? "Uploader khusus banner beranda agar tidak tercampur dengan konten Live/Reel."
           : "Uploader khusus resep, image promosi, dan live video manual."}
       </p>
@@ -95,19 +125,19 @@ export function AdminContentPublisher({
 
         <label className="grid gap-2 text-sm font-medium text-slate-700">
           Judul
-          <input name="title" defaultValue={isBannerMode ? "Promo Bundle Cafe JBD" : "Resep Chocolate Frappe Baru"} className="h-11 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm" />
+          <input name="title" defaultValue={initialAsset?.title ?? (isBannerMode ? "Promo Bundle Cafe JBD" : "Resep Chocolate Frappe Baru")} className="h-11 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm" />
         </label>
         <label className="grid gap-2 text-sm font-medium text-slate-700">
           Keyword
-          <input name="keyword" defaultValue={isBannerMode ? "banner promo homepage" : "chocolate frappe cafe"} className="h-11 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm" />
+          <input name="keyword" defaultValue={initialAsset?.keyword ?? (isBannerMode ? "banner promo homepage" : "chocolate frappe cafe")} className="h-11 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm" />
         </label>
         <label className="grid gap-2 text-sm font-medium text-slate-700">
           Caption / deskripsi
-          <textarea name="caption" rows={4} defaultValue={isBannerMode ? "Promo bahan baku minuman untuk cafe, reseller, dan distributor." : "Inspirasi menu minuman menggunakan powder JBD."} className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm" />
+          <textarea name="caption" rows={4} defaultValue={initialAsset?.caption ?? (isBannerMode ? "Promo bahan baku minuman untuk cafe, reseller, dan distributor." : "Inspirasi menu minuman menggunakan powder JBD.")} className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm" />
         </label>
         <label className="grid gap-2 text-sm font-medium text-slate-700">
           Produk terkait
-          <select name="productSlug" className="h-11 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm">
+          <select name="productSlug" defaultValue={initialAsset?.productSlug ?? products[0]?.slug} className="h-11 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm">
             {products.map((product) => (
               <option key={product.slug} value={product.slug}>{product.name}</option>
             ))}
@@ -115,7 +145,7 @@ export function AdminContentPublisher({
         </label>
         <label className="grid gap-2 text-sm font-medium text-slate-700">
           Placement
-          <select name="placement" className="h-11 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm">
+          <select name="placement" defaultValue={initialAsset?.placement} className="h-11 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm">
             {isBannerMode ? (
               <>
                 <option>Homepage carousel</option>
@@ -133,7 +163,7 @@ export function AdminContentPublisher({
         </label>
         <label className="grid gap-2 text-sm font-medium text-slate-700">
           Status publikasi
-          <select name="status" defaultValue="published" className="h-11 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm">
+          <select name="status" defaultValue={initialAsset?.status ?? "published"} className="h-11 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm">
             <option value="draft">Draft</option>
             <option value="published">Published</option>
             <option value="scheduled">Scheduled</option>
@@ -189,7 +219,7 @@ export function AdminContentPublisher({
             ) : (
               <div className="text-center">
                 <ImagePlus className="mx-auto h-9 w-9 text-white/55" />
-                <p className="mt-3 text-sm text-white/70">Preview media tampil di sini</p>
+                <p className="mt-3 text-sm text-white/70">{isEditing ? "Media tersimpan tetap dipakai jika tidak upload baru" : "Preview media tampil di sini"}</p>
               </div>
             )}
           </div>

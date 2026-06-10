@@ -2,12 +2,34 @@ import Link from "next/link";
 import { ArrowLeft, BookOpen, Video } from "lucide-react";
 import { AdminContentPublisher } from "@/components/admin-content-publisher";
 import { PrototypeShell } from "@/components/prototype-shell";
-import { getProducts } from "@/lib/mvp-store";
+import { getAssets, getProducts } from "@/lib/mvp-store";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminContentAssetsPage() {
-  const products = await getProducts();
+export default async function AdminContentAssetsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ asset?: string }>;
+}) {
+  const params = await searchParams;
+  const [products, assets] = await Promise.all([getProducts(), getAssets()]);
+  const selectedAsset = params.asset
+    ? assets.find((asset) => asset.type !== "banner" && asset.type !== "product-video" && (asset.slug === params.asset || asset.id === params.asset))
+    : undefined;
+  const initialAsset = selectedAsset
+    ? {
+        id: String(selectedAsset.id ?? ""),
+        slug: String(selectedAsset.slug ?? ""),
+        type: String(selectedAsset.type ?? "video"),
+        title: String(selectedAsset.title ?? ""),
+        caption: String(selectedAsset.caption ?? ""),
+        productSlug: String(selectedAsset.productSlug ?? ""),
+        placement: String(selectedAsset.placement ?? "Live/Reel"),
+        status: String(selectedAsset.status ?? "published"),
+        mediaUrl: typeof selectedAsset.mediaUrl === "string" ? selectedAsset.mediaUrl : undefined,
+        mimeType: typeof selectedAsset.mimeType === "string" ? selectedAsset.mimeType : undefined,
+      }
+    : undefined;
 
   return (
     <PrototypeShell compact eyebrow="Admin Assets" title="Konten Promosi, Resep, dan Reel" description="">
@@ -21,7 +43,7 @@ export default async function AdminContentAssetsPage() {
           <div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-950 text-white">
             <Video className="h-6 w-6" />
           </div>
-          <h2 className="mt-4 text-2xl font-semibold text-slate-950">Publish konten umum</h2>
+          <h2 className="mt-4 text-2xl font-semibold text-slate-950">{selectedAsset ? "Edit konten umum" : "Publish konten umum"}</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
             Gunakan halaman ini untuk konten manual admin: resep, Live/Reel, dan gambar promosi. Video yang diupload dari detail produk tetap dikelola di Media produk dan otomatis masuk Reels jika formatnya valid.
           </p>
@@ -37,6 +59,7 @@ export default async function AdminContentAssetsPage() {
 
         <AdminContentPublisher
           mode="content"
+          initialAsset={initialAsset}
           products={products.map((product) => ({ slug: product.slug, name: product.name }))}
         />
       </section>
