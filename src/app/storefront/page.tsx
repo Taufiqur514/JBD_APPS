@@ -90,12 +90,12 @@ export default async function StorefrontPage({
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[260px_1fr]">
+      <section className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="hidden rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm xl:block">
           <p className="text-sm font-semibold text-slate-950">Kategori JBD</p>
           <div className="mt-4 grid gap-2">
             {productCategories.map((category, index) => (
-              <Link key={category} href={`/storefront/search?category=${encodeURIComponent(category)}`} className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-emerald-50 hover:text-emerald-800">
+              <Link key={category} href={`/storefront?category=${encodeURIComponent(category)}#product-list`} className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-emerald-50 hover:text-emerald-800">
                 <span>{category}</span>
                 <span className={`rounded-full px-2 py-0.5 text-xs ${categoryTone[index % categoryTone.length]}`}>{index + 3}</span>
               </Link>
@@ -129,79 +129,79 @@ export default async function StorefrontPage({
               );
             })}
           </div>
-        </div>
-      </section>
 
-      <section id="product-list" className="scroll-mt-40">
-        <div className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm md:p-5">
-          <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
-            <div>
-              <p className="text-lg font-semibold text-slate-950">Rekomendasi produk JBD</p>
-              <p className="mt-1 text-sm text-slate-500">Grid marketplace untuk desktop dan mobile, fokus ke rasa, harga, rating, stok, dan repeat order.</p>
+          <section id="product-list" className="scroll-mt-40">
+            <div className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+              <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+                <div>
+                  <p className="text-lg font-semibold text-slate-950">Rekomendasi produk JBD</p>
+                  <p className="mt-1 text-sm text-slate-500">Grid marketplace untuk desktop dan mobile, fokus ke rasa, harga, rating, stok, dan repeat order.</p>
+                </div>
+                <Link href="/storefront/search" className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-slate-950 px-4 text-sm font-semibold text-white">
+                  <Search className="h-4 w-4" />
+                  Cari produk
+                </Link>
+              </div>
+
+              <div className="mt-5">
+                <CompactFilterBar
+                  categories={["Semua kategori", ...productCategories]}
+                  currentParams={{ category, sort, filter }}
+                  targetId="product-list"
+                />
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                {category && category !== "Semua kategori" ? <span className="rounded-full bg-slate-50 px-3 py-1">Kategori: {category}</span> : null}
+                {sort ? <span className="rounded-full bg-slate-50 px-3 py-1">Sort: {sort}</span> : null}
+                {filter ? <span className="rounded-full bg-slate-50 px-3 py-1">Filter: {filter}</span> : null}
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
+                {products.map((product) => (
+                  <Link
+                    key={product.slug}
+                    href={`/storefront/products/${product.slug}`}
+                    className="group rounded-2xl border border-slate-200 bg-slate-50 p-3 transition hover:border-emerald-300 hover:bg-white hover:shadow-sm md:p-4"
+                  >
+                    <ProductMediaTile coverUrl={product.coverUrl} tone={product.imageTone} name={product.name} compact />
+                    <div className="mt-3 flex items-start justify-between gap-2 md:mt-4 md:gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950 md:text-base">{product.name}</p>
+                        <p className="mt-1 text-sm text-slate-500">{product.taste}</p>
+                      </div>
+                      <span className="hidden rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 sm:inline-flex">
+                        {product.tag}
+                      </span>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between md:mt-4">
+                      <p className="text-base font-semibold text-slate-950 md:text-lg">{product.price}</p>
+                      <div className="flex items-center gap-1 text-sm text-amber-600">
+                        <Star className="h-4 w-4 fill-amber-500" />
+                        {product.rating}
+                      </div>
+                    </div>
+                    <div className="mt-3 hidden flex-wrap gap-2 sm:flex md:mt-4">
+                      {product.info.map((item) => (
+                        <span key={item} className="rounded-full bg-white px-2 py-1 text-xs text-slate-600">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3 text-xs text-slate-500">
+                      <span className="inline-flex items-center gap-1">
+                        <PackageCheck className="h-3.5 w-3.5 text-emerald-600" />
+                        Stok {product.stock}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <ChevronRight className="h-3.5 w-3.5" />
+                        Detail
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </div>
-            <Link href="/storefront/search" className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-slate-950 px-4 text-sm font-semibold text-white">
-              <Search className="h-4 w-4" />
-              Cari produk
-            </Link>
-          </div>
-
-          <div className="mt-5">
-            <CompactFilterBar
-              categories={["Semua kategori", ...productCategories]}
-              currentParams={{ category, sort, filter }}
-              targetId="product-list"
-            />
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-            {category && category !== "Semua kategori" ? <span className="rounded-full bg-slate-50 px-3 py-1">Kategori: {category}</span> : null}
-            {sort ? <span className="rounded-full bg-slate-50 px-3 py-1">Sort: {sort}</span> : null}
-            {filter ? <span className="rounded-full bg-slate-50 px-3 py-1">Filter: {filter}</span> : null}
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">
-            {products.map((product) => (
-              <Link
-                key={product.slug}
-                href={`/storefront/products/${product.slug}`}
-                className="group rounded-2xl border border-slate-200 bg-slate-50 p-3 transition hover:border-emerald-300 hover:bg-white hover:shadow-sm md:p-4"
-              >
-                <ProductMediaTile coverUrl={product.coverUrl} tone={product.imageTone} name={product.name} compact />
-                <div className="mt-3 flex items-start justify-between gap-2 md:mt-4 md:gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-950 md:text-base">{product.name}</p>
-                    <p className="mt-1 text-sm text-slate-500">{product.taste}</p>
-                  </div>
-                  <span className="hidden rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 sm:inline-flex">
-                    {product.tag}
-                  </span>
-                </div>
-                <div className="mt-3 flex items-center justify-between md:mt-4">
-                  <p className="text-base font-semibold text-slate-950 md:text-lg">{product.price}</p>
-                  <div className="flex items-center gap-1 text-sm text-amber-600">
-                    <Star className="h-4 w-4 fill-amber-500" />
-                    {product.rating}
-                  </div>
-                </div>
-                <div className="mt-3 hidden flex-wrap gap-2 sm:flex md:mt-4">
-                  {product.info.map((item) => (
-                    <span key={item} className="rounded-full bg-white px-2 py-1 text-xs text-slate-600">
-                      {item}
-                    </span>
-                  ))}
-                </div>
-                <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3 text-xs text-slate-500">
-                  <span className="inline-flex items-center gap-1">
-                    <PackageCheck className="h-3.5 w-3.5 text-emerald-600" />
-                    Stok {product.stock}
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <ChevronRight className="h-3.5 w-3.5" />
-                    Detail
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
+          </section>
         </div>
       </section>
     </PrototypeShell>
