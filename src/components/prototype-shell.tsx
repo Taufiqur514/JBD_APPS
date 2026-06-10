@@ -31,6 +31,7 @@ import {
   Video,
   Warehouse,
 } from "lucide-react";
+import { isAdminHost, isStorefrontAliasPath, isStorefrontHost } from "@/lib/domain-routing";
 import { navItems, topStatus } from "@/lib/prototype-data";
 
 type TopActionItem = {
@@ -95,6 +96,19 @@ function getCachedSessionRole() {
   return window.sessionStorage.getItem("jbd-session-role") ?? "";
 }
 
+function getSurfaceLabel(activeApp: string, host = "") {
+  if (host === "shop.jbd.co.id") return "Frontstore Web";
+  if (host === "app.ptskb.co.id") return "Frontstore App";
+  if (host === "admin.ptskb.co.id") return "Admin Web Console";
+  if (host === "admin-app.ptskb.co.id") return "Admin App Console";
+  if (activeApp === "storefront") return "Frontstore Web";
+  if (activeApp === "admin") return "Admin Console";
+  if (activeApp === "operations") return "Operations Workspace";
+  if (activeApp === "insights") return "Insight Workspace";
+  if (activeApp === "finance") return "Finance Workspace";
+  return "Overview";
+}
+
 export function PrototypeShell({
   eyebrow,
   title,
@@ -113,28 +127,30 @@ export function PrototypeShell({
   const [suiteNavOpen, setSuiteNavOpen] = useState(false);
   const [headerCounts, setHeaderCounts] = useState({ cart: 0, notifications: 0 });
   const [sessionRole, setSessionRole] = useState("");
+  const [surfaceHost, setSurfaceHost] = useState("");
   const activeApp = useMemo(() => {
+    if (isStorefrontHost(surfaceHost) && (pathname === "/" || pathname.startsWith("/storefront") || isStorefrontAliasPath(pathname))) {
+      return "storefront";
+    }
+    if (isAdminHost(surfaceHost) && pathname === "/") return sessionRole === "finance" ? "finance" : sessionRole === "warehouse" ? "operations" : "admin";
     if (pathname.startsWith("/storefront")) return "storefront";
     if (pathname.startsWith("/finance")) return "finance";
     if (pathname.startsWith("/operations")) return "operations";
     if (pathname.startsWith("/insights")) return "insights";
     if (pathname.startsWith("/admin")) return "admin";
     return "overview";
-  }, [pathname]);
+  }, [pathname, sessionRole, surfaceHost]);
   const appNavItems = useMemo(() => (activeApp === "overview" ? [] : bottomNav[activeApp] ?? []), [activeApp]);
-  const appName =
-    activeApp === "storefront"
-      ? "Frontstore Web"
-      : activeApp === "admin"
-        ? "Admin Console"
-        : activeApp === "finance"
-          ? "Finance Workspace"
-        : "Overview";
+  const appName = getSurfaceLabel(activeApp, surfaceHost);
   const isStorefrontHome = activeApp === "storefront" && pathname === "/storefront";
   const desktopConsoleApp = activeApp === "admin" || activeApp === "operations" || activeApp === "insights" || activeApp === "finance"
     ? activeApp
     : null;
   const useWideDesktop = activeApp === "storefront" || Boolean(desktopConsoleApp);
+
+  useEffect(() => {
+    queueMicrotask(() => setSurfaceHost(window.location.hostname));
+  }, []);
 
   useEffect(() => {
     let active = true;

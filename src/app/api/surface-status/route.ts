@@ -20,9 +20,12 @@ export async function GET() {
   return NextResponse.json({
     status: "connected",
     surfaces: {
-      app: "http://100.81.217.5:3001/storefront",
-      frontstoreWeb: "/storefront",
-      adminWeb: "/admin",
+      frontstoreWeb: "https://shop.jbd.co.id/",
+      frontstoreApp: "https://app.ptskb.co.id/",
+      adminWeb: "https://admin.ptskb.co.id/",
+      adminApp: "https://admin-app.ptskb.co.id/",
+      api: "https://api.ptskb.co.id/",
+      media: "https://media.ptskb.co.id/",
     },
     sharedBackend: {
       database: isSupabaseConfigured() ? "Supabase PostgreSQL + Storage" : "MongoDB development fallback",
