@@ -3,7 +3,7 @@ import { BadgePercent, ChevronRight, Gift, MessageCircle, PackageCheck, Search, 
 import { CompactFilterBar } from "@/components/compact-filter-bar";
 import { PrototypeShell } from "@/components/prototype-shell";
 import { StorefrontCarousel } from "@/components/storefront-carousel";
-import { getProducts } from "@/lib/mvp-store";
+import { getAssets, getProducts } from "@/lib/mvp-store";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +16,19 @@ export default async function StorefrontPage({
   const category = params.category;
   const sort = params.sort;
   const filter = params.filter;
-  const allProducts = await getProducts();
+  const [allProducts, assets] = await Promise.all([getProducts(), getAssets()]);
   let products = [...allProducts];
+  const bannerSlides = assets
+    .filter((asset) => asset.type === "banner" && asset.status !== "draft")
+    .map((asset) => ({
+      eyebrow: "Banner carousel JBD",
+      title: String(asset.title),
+      cta: asset.productSlug ? "Lihat produk" : "Lihat promo",
+      href: asset.productSlug ? `/storefront/products/${asset.productSlug}` : "/storefront",
+      tone: "from-emerald-950 via-emerald-800 to-amber-500",
+      mediaUrl: typeof asset.mediaUrl === "string" ? asset.mediaUrl : undefined,
+      mediaType: String(asset.mimeType ?? "").startsWith("video/") ? ("video" as const) : ("image" as const),
+    }));
   const productCategories = Array.from(new Set(allProducts.map((product) => product.category).filter(Boolean)));
   const categoryTone = ["bg-emerald-50 text-emerald-700", "bg-amber-50 text-amber-700", "bg-sky-50 text-sky-700", "bg-violet-50 text-violet-700", "bg-rose-50 text-rose-700", "bg-lime-50 text-lime-700"];
   const quickServices = [
@@ -62,7 +73,7 @@ export default async function StorefrontPage({
           </div>
         </div>
         <div className="grid grid-cols-[1fr_280px] gap-4 p-5">
-          <StorefrontCarousel />
+          <StorefrontCarousel banners={bannerSlides} />
           <div className="grid gap-3">
             <Link href="/storefront/profile/vouchers" className="rounded-2xl bg-slate-950 p-4 text-white">
               <Zap className="h-5 w-5 text-amber-300" />
@@ -101,7 +112,7 @@ export default async function StorefrontPage({
 
         <div className="min-w-0 space-y-4">
           <div className="lg:hidden">
-            <StorefrontCarousel />
+            <StorefrontCarousel banners={bannerSlides} />
           </div>
 
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">

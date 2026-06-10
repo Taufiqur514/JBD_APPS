@@ -11,10 +11,12 @@ type Preview = {
 
 const contentTypes = [
   { value: "recipe", label: "Resep", helper: "Muncul di halaman Resep dan Live/Reel." },
-  { value: "banner", label: "Banner carousel", helper: "Muncul di carousel beranda dan Live/Reel." },
   { value: "video", label: "Live video", helper: "Muncul full screen di Live/Reel." },
-  { value: "product-video", label: "Video produk", helper: "Terhubung ke PDP dan Live/Reel." },
   { value: "image", label: "Gambar promosi", helper: "Konten visual untuk campaign." },
+];
+
+const bannerTypes = [
+  { value: "banner", label: "Banner carousel", helper: "Hanya muncul di carousel beranda/frontstore. Tidak masuk Live/Reel." },
 ];
 
 function mediaTypeFromFile(file: File): Preview["mediaType"] {
@@ -23,12 +25,16 @@ function mediaTypeFromFile(file: File): Preview["mediaType"] {
 
 export function AdminContentPublisher({
   products,
+  mode = "content",
 }: {
   products: { slug: string; name: string }[];
+  mode?: "content" | "banner";
 }) {
-  const [type, setType] = useState("recipe");
+  const availableTypes = mode === "banner" ? bannerTypes : contentTypes;
+  const [type, setType] = useState(availableTypes[0].value);
   const [preview, setPreview] = useState<Preview | null>(null);
-  const activeType = contentTypes.find((item) => item.value === type) ?? contentTypes[0];
+  const activeType = availableTypes.find((item) => item.value === type) ?? availableTypes[0];
+  const isBannerMode = mode === "banner";
 
   useEffect(() => {
     return () => {
@@ -51,12 +57,16 @@ export function AdminContentPublisher({
 
   return (
     <form id="publish-content" action="/api/admin/assets" method="post" encType="multipart/form-data" className="min-w-0 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="font-semibold text-slate-950">Publish konten baru</p>
-      <p className="mt-1 text-sm leading-6 text-slate-500">Satu uploader untuk resep, banner, image, video produk, dan Live/Reel.</p>
+      <p className="font-semibold text-slate-950">{isBannerMode ? "Tambah banner carousel" : "Publish konten baru"}</p>
+      <p className="mt-1 text-sm leading-6 text-slate-500">
+        {isBannerMode
+          ? "Uploader khusus banner beranda agar tidak tercampur dengan konten Live/Reel."
+          : "Uploader khusus resep, image promosi, dan live video manual."}
+      </p>
 
       <div className="mt-4 grid gap-3">
         <div className="grid grid-cols-2 gap-2">
-          {contentTypes.map((item) => (
+          {availableTypes.map((item) => (
             <label key={item.value} className="cursor-pointer">
               <input
                 className="peer sr-only"
@@ -85,15 +95,15 @@ export function AdminContentPublisher({
 
         <label className="grid gap-2 text-sm font-medium text-slate-700">
           Judul
-          <input name="title" defaultValue="Resep Chocolate Frappe Baru" className="h-11 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm" />
+          <input name="title" defaultValue={isBannerMode ? "Promo Bundle Cafe JBD" : "Resep Chocolate Frappe Baru"} className="h-11 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm" />
         </label>
         <label className="grid gap-2 text-sm font-medium text-slate-700">
           Keyword
-          <input name="keyword" defaultValue="chocolate frappe cafe" className="h-11 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm" />
+          <input name="keyword" defaultValue={isBannerMode ? "banner promo homepage" : "chocolate frappe cafe"} className="h-11 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm" />
         </label>
         <label className="grid gap-2 text-sm font-medium text-slate-700">
           Caption / deskripsi
-          <textarea name="caption" rows={4} defaultValue="Inspirasi menu minuman menggunakan powder JBD." className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm" />
+          <textarea name="caption" rows={4} defaultValue={isBannerMode ? "Promo bahan baku minuman untuk cafe, reseller, dan distributor." : "Inspirasi menu minuman menggunakan powder JBD."} className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm" />
         </label>
         <label className="grid gap-2 text-sm font-medium text-slate-700">
           Produk terkait
@@ -106,10 +116,19 @@ export function AdminContentPublisher({
         <label className="grid gap-2 text-sm font-medium text-slate-700">
           Placement
           <select name="placement" className="h-11 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm">
-            <option>Resep + Live/Reel</option>
-            <option>Homepage carousel</option>
-            <option>Product detail</option>
-            <option>Voucher campaign</option>
+            {isBannerMode ? (
+              <>
+                <option>Homepage carousel</option>
+                <option>Homepage promo strip</option>
+              </>
+            ) : (
+              <>
+                <option>Resep + Live/Reel</option>
+                <option>Live/Reel</option>
+                <option>Product detail</option>
+                <option>Voucher campaign</option>
+              </>
+            )}
           </select>
         </label>
         <label className="grid gap-2 text-sm font-medium text-slate-700">

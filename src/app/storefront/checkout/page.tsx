@@ -14,6 +14,9 @@ export default async function CheckoutPage() {
   const totalWeight = Math.max(1000, lines.reduce((sum, line) => sum + line.qty * 1000, 0));
   const destinationCity = String(address?.address ?? "").toLowerCase().includes("bekasi") ? "Bekasi" : "Jakarta";
   const shippingQuotes = quoteShipping(destinationCity, totalWeight);
+  const selectedShipping = shippingQuotes[0];
+  const addressId = String(address?.id ?? "addr-main");
+  const selectedCourier = selectedShipping ? `${selectedShipping.courier} ${selectedShipping.service}` : "JNE REG";
 
   return (
     <PrototypeShell compact eyebrow="Checkout" title="Alamat, Kurir, Voucher" description="">
@@ -101,6 +104,9 @@ export default async function CheckoutPage() {
             </div>
           ) : null}
           <form action="/api/checkout" method="post">
+            <input type="hidden" name="addressId" value={addressId} />
+            <input type="hidden" name="courier" value={selectedCourier} />
+            <input type="hidden" name="paymentMethod" value="qris" />
             <button
               type="submit"
               className="mt-5 hidden h-12 w-full items-center justify-center rounded-full bg-emerald-700 text-sm font-semibold text-white lg:flex"
@@ -113,6 +119,9 @@ export default async function CheckoutPage() {
 
       <div className="fixed inset-x-0 bottom-20 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
         <form action="/api/checkout" method="post">
+          <input type="hidden" name="addressId" value={addressId} />
+          <input type="hidden" name="courier" value={selectedCourier} />
+          <input type="hidden" name="paymentMethod" value="qris" />
           <button
             type="submit"
             className="flex h-12 w-full items-center justify-center rounded-full bg-emerald-700 text-sm font-semibold text-white"

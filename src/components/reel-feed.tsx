@@ -11,6 +11,7 @@ import {
   Play,
   Send,
   ShoppingCart,
+  Video,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -83,6 +84,20 @@ export function ReelFeed({ items }: { items: ReelItem[] }) {
         ref={containerRef}
         className="h-[calc(100dvh-72px)] snap-y snap-mandatory overflow-y-auto overscroll-y-contain bg-black lg:mx-auto lg:max-w-[520px]"
       >
+        {!items.length ? (
+          <div className="grid h-[calc(100dvh-72px)] place-items-center px-6 text-center text-white">
+            <div>
+              <Video className="mx-auto h-12 w-12 text-white/45" />
+              <h2 className="mt-4 text-2xl font-semibold">Belum ada video Reels aktif</h2>
+              <p className="mt-2 text-sm leading-6 text-white/70">
+                Upload Live video dari Admin Konten atau video produk dari Media Produk agar tampil di sini.
+              </p>
+              <Link href="/admin/assets/content" className="mt-5 inline-flex h-11 items-center rounded-full bg-white px-5 text-sm font-semibold text-slate-950">
+                Tambah konten
+              </Link>
+            </div>
+          </div>
+        ) : null}
         {items.map((item, index) => {
           const isLiked = liked.includes(item.id);
           return (

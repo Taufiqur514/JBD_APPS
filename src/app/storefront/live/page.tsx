@@ -15,15 +15,29 @@ function isVideoMedia(value?: string, mimeType?: string) {
   );
 }
 
+function isDemoPlaceholder(value?: string) {
+  if (!value) return true;
+  return value.includes("example.com/") || value.includes("placeholder");
+}
+
 export default async function StorefrontLivePage() {
   const [assets, recipes] = await Promise.all([getAssets(), getRecipes()]);
+  const reelAssets = assets.filter((asset) => {
+    const mediaUrl = typeof asset.mediaUrl === "string" ? asset.mediaUrl : undefined;
+    if (asset.status === "draft" || isDemoPlaceholder(mediaUrl)) return false;
+    if (asset.type === "banner" || asset.type === "recipe") return false;
+    if (asset.type === "product-video") return Boolean(mediaUrl && isVideoMedia(mediaUrl, asset.mimeType));
+    if (asset.type === "video") return Boolean(mediaUrl && isVideoMedia(mediaUrl, asset.mimeType));
+    if (asset.type === "image") return Boolean(mediaUrl);
+    return false;
+  });
   const feed: ReelItem[] = [
-    ...assets.filter((asset) => asset.type !== "recipe").map((asset, index) => ({
+    ...reelAssets.map((asset, index) => ({
       id: String(asset.id ?? `asset-${index}`),
       title: String(asset.title),
-      subtitle: String(asset.placement ?? "Konten JBD"),
+      subtitle: asset.type === "product-video" ? "Video dari detail produk" : String(asset.placement ?? "Konten manual admin"),
       tag: String(asset.type).toUpperCase(),
-      href: asset.type === "banner" ? "/storefront" : `/storefront/products/${asset.productSlug ?? "chocolate-premium-500g"}`,
+      href: `/storefront/products/${asset.productSlug ?? "chocolate-premium-500g"}`,
       mediaUrl: typeof asset.mediaUrl === "string" ? asset.mediaUrl : undefined,
       mediaType: isVideoMedia(typeof asset.mediaUrl === "string" ? asset.mediaUrl : undefined, asset.mimeType) ? "video" as const : "image" as const,
     })),

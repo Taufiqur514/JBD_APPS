@@ -559,10 +559,12 @@ function adminTopActions(pathname: string): TopActionItem[] {
   }
   if (pathname.startsWith("/admin/assets")) {
     return [
-      { href: "/admin/assets", icon: ImageIcon, label: "Asset library", dark: true },
+      { href: "/admin/assets", icon: ImageIcon, label: "Asset library", dark: pathname === "/admin/assets" },
+      { href: "/admin/assets/banners", icon: ImageIcon, label: "Banner carousel", dark: pathname.startsWith("/admin/assets/banners") },
+      { href: "/admin/assets/content", icon: Video, label: "Konten/Reel", dark: pathname.startsWith("/admin/assets/content") },
       { href: "/admin/products/new?tab=media", icon: PackagePlus, label: "Media produk" },
+      { href: "/storefront", icon: Store, label: "Preview storefront" },
       { href: "/storefront/live", icon: Video, label: "Preview reel" },
-      { href: "/storefront/recipes", icon: BookOpen, label: "Preview resep" },
     ];
   }
   if (pathname.startsWith("/admin/inventory")) {

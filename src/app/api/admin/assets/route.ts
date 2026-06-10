@@ -58,7 +58,7 @@ export async function POST(request: Request) {
   const type = allowedTypes.has(requestedType) ? requestedType : "recipe";
   const status = allowedStatuses.has(requestedStatus) ? requestedStatus : "draft";
   const title = String(formData.get("title") ?? "").trim();
-  const placement = String(formData.get("placement") ?? "Live/Reel + Resep").trim();
+  let placement = String(formData.get("placement") ?? "Live/Reel + Resep").trim();
   const productSlug = String(formData.get("productSlug") ?? "").trim();
   const keyword = String(formData.get("keyword") ?? title).trim();
   const caption = String(formData.get("caption") ?? "").trim();
@@ -74,6 +74,12 @@ export async function POST(request: Request) {
   }
   if (externalMediaUrl && !externalMediaUrl.startsWith("https://")) {
     return new Response("URL media harus menggunakan HTTPS.", { status: 400 });
+  }
+  if (type === "banner" && !placement.toLowerCase().includes("homepage")) {
+    placement = "Homepage carousel";
+  }
+  if (type !== "banner" && placement.toLowerCase().includes("homepage")) {
+    placement = "Live/Reel";
   }
 
   const contentSlug = `${slugify(title)}-${Date.now()}`;
@@ -175,5 +181,5 @@ export async function POST(request: Request) {
   }
 
   invalidateMvpCache();
-  return redirectResponse("/admin/assets?published=1", request);
+  return redirectResponse(type === "banner" ? "/admin/assets/banners?published=1" : "/admin/assets/content?published=1", request);
 }
