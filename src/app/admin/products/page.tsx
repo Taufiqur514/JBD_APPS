@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Edit3, FileSpreadsheet, PackagePlus, Tags } from "lucide-react";
 import { CompactFilterBar } from "@/components/compact-filter-bar";
+import { ProductMediaTile } from "@/components/product-media-tile";
 import { PrototypeShell } from "@/components/prototype-shell";
 import { getInventory, getProductCategories, getProducts } from "@/lib/mvp-store";
 
@@ -94,12 +95,9 @@ export default async function AdminProductsPage({
               className="grid gap-3 border-b border-slate-100 px-4 py-4 text-sm last:border-b-0 hover:bg-slate-50 md:grid-cols-[1.3fr_0.8fr_0.8fr_0.8fr_0.8fr_auto] md:items-center md:gap-4 md:px-5"
             >
               <div className="flex items-center gap-3">
-                {product.coverUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={product.coverUrl} alt={product.name} className="h-12 w-12 rounded-xl object-cover" />
-                ) : (
-                  <div className={`h-12 w-12 rounded-xl ${product.imageTone}`} />
-                )}
+                <div className="h-12 w-12 overflow-hidden rounded-xl">
+                  <ProductMediaTile coverUrl={product.coverUrl} tone={product.imageTone} name={product.name} compact />
+                </div>
                 <div>
                   <p className="font-semibold text-slate-950">{product.name}</p>
                   <p className="mt-1 text-xs text-slate-500">{product.taste}</p>

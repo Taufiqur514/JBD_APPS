@@ -60,6 +60,10 @@ function toneForCategory(category: string) {
   return "bg-amber-200";
 }
 
+function isDemoPlaceholderUrl(value: string) {
+  return value.includes("example.com/") || value.includes("placeholder");
+}
+
 export async function listProductionProducts() {
   const result = await queryPostgres<ProductRow>(
     `select products.slug, products.sku, products.name, products.description,
@@ -141,8 +145,9 @@ export async function listProductionProducts() {
     const numericPrice = Number(row.price);
     const images = Array.isArray(row.images)
       ? row.images
-          .filter((image) => image?.url)
+          .filter((image) => image?.url && !isDemoPlaceholderUrl(String(image.url)))
           .sort((a, b) => Number(a.sortOrder) - Number(b.sortOrder))
+          .slice(0, 10)
           .map((image) => ({
             url: String(image.url),
             alt: image.alt ? String(image.alt) : row.name,
@@ -153,7 +158,8 @@ export async function listProductionProducts() {
       : [];
     const videos = Array.isArray(row.videos)
       ? row.videos
-          .filter((video) => video?.url)
+          .filter((video) => video?.url && !isDemoPlaceholderUrl(String(video.url)))
+          .slice(0, 3)
           .map((video, index) => ({
             url: String(video.url),
             alt: video.alt ? String(video.alt) : row.name,
@@ -204,7 +210,9 @@ export async function listProductionProducts() {
             { name: "1kg", price: numericPrice * 2, sku: `${row.sku}-1KG`, weightGrams: 1000, stock: 0, active: true },
           ],
       images: media,
-      coverUrl: images.find((image) => image.isCover)?.url ?? images[0]?.url ?? row.cover_url ?? undefined,
+      coverUrl: images.find((image) => image.isCover)?.url
+        ?? images[0]?.url
+        ?? (row.cover_url && !isDemoPlaceholderUrl(row.cover_url) ? row.cover_url : undefined),
       active: row.active,
       updatedAt: row.updated_at.toISOString(),
     };

@@ -14,10 +14,13 @@ export function generateStaticParams() {
 
 export default async function ProductDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ media?: string }>;
 }) {
   const { slug } = await params;
+  const selectedMedia = Math.max(0, Number((await searchParams).media ?? 0) || 0);
   const product = await getProduct(slug);
   const variantDetails: Array<{ name: string; price: number; weightGrams?: number; stock?: number }> = product.variantDetails?.length
     ? product.variantDetails
@@ -35,7 +38,7 @@ export default async function ProductDetailPage({
 
       <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-          <ProductImageCarousel images={product.images} fallbackTone={product.imageTone} productName={product.name} />
+          <ProductImageCarousel images={product.images} fallbackTone={product.imageTone} productName={product.name} initialIndex={selectedMedia} />
           <div className="mt-4 grid grid-cols-4 gap-3">
             {variantDetails.map((variant) => (
               <div key={variant.name} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center text-xs text-slate-600">

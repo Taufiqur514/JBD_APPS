@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
 import { CompactFilterBar } from "@/components/compact-filter-bar";
+import { ProductMediaTile } from "@/components/product-media-tile";
 import { PrototypeShell } from "@/components/prototype-shell";
 import { getProducts } from "@/lib/mvp-store";
 
@@ -59,12 +60,7 @@ export default async function StorefrontSearchPage({
                 href={`/storefront/products/${product.slug}`}
                 className="rounded-2xl border border-slate-200 bg-slate-50 p-3 transition hover:border-emerald-300 hover:bg-white md:p-4"
               >
-                {product.coverUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={product.coverUrl} alt={product.name} className="aspect-[4/3] w-full rounded-2xl object-cover" />
-                ) : (
-                  <div className={`aspect-[4/3] rounded-2xl ${product.imageTone}`} />
-                )}
+                <ProductMediaTile coverUrl={product.coverUrl} tone={product.imageTone} name={product.name} compact />
                 <p className="mt-3 text-sm font-semibold text-slate-950 md:mt-4 md:text-base">{product.name}</p>
                 <p className="mt-1 text-sm text-slate-500">{product.taste}</p>
                 <div className="mt-4 flex items-center justify-between">

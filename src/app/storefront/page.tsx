@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BadgePercent, ChevronRight, Gift, MessageCircle, PackageCheck, Search, ShieldCheck, Star, Truck, Zap } from "lucide-react";
 import { CompactFilterBar } from "@/components/compact-filter-bar";
+import { ProductMediaTile } from "@/components/product-media-tile";
 import { PrototypeShell } from "@/components/prototype-shell";
 import { StorefrontCarousel } from "@/components/storefront-carousel";
 import { getAssets, getProducts } from "@/lib/mvp-store";
@@ -164,12 +165,7 @@ export default async function StorefrontPage({
                 href={`/storefront/products/${product.slug}`}
                 className="group rounded-2xl border border-slate-200 bg-slate-50 p-3 transition hover:border-emerald-300 hover:bg-white hover:shadow-sm md:p-4"
               >
-                {product.coverUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={product.coverUrl} alt={product.name} className="aspect-[4/3] w-full rounded-2xl object-cover" />
-                ) : (
-                  <div className={`aspect-[4/3] rounded-2xl ${product.imageTone}`} />
-                )}
+                <ProductMediaTile coverUrl={product.coverUrl} tone={product.imageTone} name={product.name} compact />
                 <div className="mt-3 flex items-start justify-between gap-2 md:mt-4 md:gap-4">
                   <div>
                     <p className="text-sm font-semibold text-slate-950 md:text-base">{product.name}</p>
